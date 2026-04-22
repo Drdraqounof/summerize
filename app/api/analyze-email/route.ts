@@ -7,6 +7,15 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
+    // Check for API key
+    if (!process.env.OPENAI_API_KEY) {
+      console.error("Missing OPENAI_API_KEY environment variable");
+      return NextResponse.json(
+        { error: "OpenAI API key not configured" },
+        { status: 500 }
+      );
+    }
+
     const { subject, preview, body } = await request.json();
 
     if (!subject || !body) {
@@ -19,7 +28,7 @@ export async function POST(request: NextRequest) {
     const emailContent = `Subject: ${subject}\n\nPreview: ${preview}\n\nBody: ${body}`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: "gpt-3.5-turbo-instruct",
       messages: [
         {
           role: "system",
@@ -57,9 +66,10 @@ Categories:
       summary: result.summary,
     });
   } catch (error) {
-    console.error("OpenAI API Error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("Email analysis error:", errorMessage, error);
     return NextResponse.json(
-      { error: "Failed to analyze email" },
+      { error: `Failed to analyze email: ${errorMessage}` },
       { status: 500 }
     );
   }

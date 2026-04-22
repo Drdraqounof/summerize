@@ -41,6 +41,7 @@ interface EmailContextType {
   saveOnboardingAnswers: (answers: OnboardingAnswers) => void;
   saveConnectionProvider: (provider: string) => void;
   saveConnectedAccount: (account: ConnectedAccount) => void;
+  loadGmailEmails: (email: string) => Promise<void>;
 }
 
 const EmailContext = createContext<EmailContextType | undefined>(undefined);
@@ -161,6 +162,42 @@ export function EmailProvider({ children }: { children: ReactNode }) {
     setConnectionProvider(account.provider);
     localStorage.setItem("connectedAccount", JSON.stringify(account));
     localStorage.setItem("emailConnectionProvider", account.provider);
+    
+    // Load real emails from Gmail if provider is gmail
+    if (account.provider === "gmail") {
+      loadGmailEmails(account.email);
+    }
+  };
+
+  const loadGmailEmails = async (email: string) => {
+    try {
+      console.log("[Providers] Loading Gmail emails for:", email);
+      const response = await fetch(`/api/gmail/messages?email=${encodeURIComponent(email)}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          `Failed to load Gmail emails: ${errorData.error || `Status ${response.status}`}`
+        );
+      }
+
+      const data = await response.json();
+      const gmailEmails: Email[] = data.emails.map((e: any) => ({
+        ...e,
+        timestamp: new Date(e.date),
+        read: false,
+        category: e.category,
+        summary: e.summary,
+        analyzed: e.analyzed || false,
+      }));
+
+      setEmails(gmailEmails);
+      localStorage.setItem("emails", JSON.stringify(gmailEmails));
+      console.log("[Providers] Successfully loaded", gmailEmails.length, "emails from Gmail");
+    } catch (error) {
+      console.error("[Providers] Error loading Gmail emails:", error);
+      // Keep sample emails if Gmail fetch fails
+    }
   };
 
   const analyzeEmail = async (id: string) => {
@@ -222,6 +259,7 @@ export function EmailProvider({ children }: { children: ReactNode }) {
         saveOnboardingAnswers,
         saveConnectionProvider,
         saveConnectedAccount,
+        loadGmailEmails,
       }}
     >
       {children}
