@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useEmail } from "../providers";
+import { type Email, useEmail } from "../providers";
 import EmailList from "../components/EmailList";
 import EmailDetail from "../components/EmailDetail";
 
@@ -51,7 +51,7 @@ export default function InboxPage() {
     router.replace("/login");
   };
 
-  const selectedEmail = emails.find((e) => e.id === selectedEmailId);
+  const selectedEmail: Email | undefined = emails.find((e) => e.id === selectedEmailId);
 
   return (
     <div className="flex-1 flex flex-col h-screen bg-gray-50">

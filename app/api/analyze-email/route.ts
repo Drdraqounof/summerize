@@ -5,9 +5,161 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// In-memory cache for analyzed emails
+const analysisCache = new Map<string, { category: string; summary: string }>();
+
+// Ultra-aggressive email cleaning - removes ALL noise, keeps only core content
+function cleanEmailBody(body: string): string {
+  if (!body) return "";
+
+  let cleaned = body;
+
+  // PHASE 0: Remove all URLs completely (not just tracking ones)
+  cleaned = cleaned.replace(/https?:\/\/[^\s]+/gi, "");
+
+  // PHASE 1: Remove entire lines with keywords
+  cleaned = cleaned
+    .split("\n")
+    .map((line) => {
+      // Remove lines with action keywords
+      if (
+        /view job|apply|apply with|view profile|see all jobs|learn why|manage your|unsubscribe|this company is actively|stand out|let hirers/i.test(
+          line
+        )
+      ) {
+        return "";
+      }
+      // Remove lines that are just special characters or dashes
+      if (/^[\s\-·•|]+$/.test(line)) {
+        return "";
+      }
+      // Remove lines with email metadata
+      if (
+        /^you are receiving|this email was intended|learn why we included|©.*linkedin/i.test(
+          line
+        )
+      ) {
+        return "";
+      }
+      return line;
+    })
+    .join("\n");
+
+  // PHASE 2: Remove footer sections completely
+  // Remove everything after common footer markers
+  cleaned = cleaned.split(/^---+/m)[0]; // Remove after separator
+  cleaned = cleaned.split(/^This email was intended/m)[0]; // Remove footer section
+  cleaned = cleaned.split(/^You are receiving/m)[0]; // Remove management section
+  cleaned = cleaned.split(/^Manage your job alerts/m)[0]; // Remove unsubscribe section
+
+  // PHASE 3: Remove all tracking tokens and parameters
+  cleaned = cleaned.replace(/\?[a-zA-Z0-9=&%\-_.~]+/g, "");
+  cleaned = cleaned.replace(/&[a-zA-Z0-9=&%\-_.~]+/g, "");
+  cleaned = cleaned.replace(/=[a-zA-Z0-9%\-_.~]+/g, "");
+  cleaned = cleaned.replace(/midToken|midSig|eid|otpToken|lipi|trk|trackingId/gi, "");
+
+  // PHASE 4: Extract and preserve only meaningful content
+  // Keep job titles, companies, locations, descriptions
+  const lines = cleaned
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => {
+      // Keep if has meaningful content (job title, company name, location, description)
+      const hasContent =
+        line.length > 3 &&
+        !/^[\s\-·•|]*$/.test(line) && // Not just special chars
+        !/^(view|apply|learn|manage|help|unsubscribe)/i.test(line) && // Not action words
+        !/^(this|you are|©|·)/i.test(line) && // Not metadata
+        !/linkedin|midtoken|midsig|eid|otptoken|lipi|trk|@|utm_/i.test(line); // Not system stuff
+
+      return hasContent;
+    });
+
+  // PHASE 5: Aggressive whitespace normalization
+  let final = lines.join("\n").trim();
+
+  // Remove multiple blank lines
+  final = final.replace(/\n\n\n+/g, "\n\n");
+
+  // Remove lines with only encoded characters or garbage
+  final = final
+    .split("\n")
+    .filter(
+      (line) =>
+        !/^[a-zA-Z0-9%]{20,}/.test(line) && // Not long encoded string
+        !/^[0-9a-f]{20,}/.test(line) // Not hex string
+    )
+    .join("\n");
+
+  return final.substring(0, 1200).trim();
+}
+
+// Batch analyze multiple emails efficiently
+async function batchAnalyzeEmails(emails: Array<{ id: string; subject: string; body: string }>) {
+  const results: { [id: string]: { category: string; summary: string } } = {};
+
+  // Process in parallel for speed, but with rate limiting
+  const batches = [];
+  for (let i = 0; i < emails.length; i += 5) {
+    batches.push(emails.slice(i, i + 5));
+  }
+
+  for (const batch of batches) {
+    await Promise.all(
+      batch.map(async (email) => {
+        // Check cache first
+        if (analysisCache.has(email.id)) {
+          results[email.id] = analysisCache.get(email.id)!;
+          return;
+        }
+
+        try {
+          const cleanedBody = cleanEmailBody(email.body);
+          const emailContent = `Subject: ${email.subject}\n\nBody:\n${cleanedBody}`;
+
+          const response = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+              {
+                role: "system",
+                content: `Analyze email and respond with ONLY valid JSON:
+{
+  "category": "Work|Personal|Promotions|Alerts|Other",
+  "summary": "brief summary max 100 chars"
+}`,
+              },
+              {
+                role: "user",
+                content: emailContent,
+              },
+            ],
+            temperature: 0.2,
+            max_tokens: 150,
+          });
+
+          const content = response.choices[0]?.message?.content;
+          if (content) {
+            const result = JSON.parse(content);
+            results[email.id] = result;
+            // Cache the result
+            analysisCache.set(email.id, result);
+          }
+        } catch (error) {
+          console.error(`Failed to analyze email ${email.id}:`, error);
+          results[email.id] = {
+            category: "Other",
+            summary: "Analysis failed",
+          };
+        }
+      })
+    );
+  }
+
+  return results;
+}
+
 export async function POST(request: NextRequest) {
   try {
-    // Check for API key
     if (!process.env.OPENAI_API_KEY) {
       console.error("Missing OPENAI_API_KEY environment variable");
       return NextResponse.json(
@@ -16,55 +168,59 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { subject, preview, body } = await request.json();
+    const body = await request.json();
 
-    if (!subject || !body) {
-      return NextResponse.json(
-        { error: "Missing subject or body" },
-        { status: 400 }
-      );
-    }
+    // Check if this is a batch request or single email
+    if (Array.isArray(body)) {
+      // Batch analysis
+      const emails = body as Array<{ id: string; subject: string; body: string }>;
+      const results = await batchAnalyzeEmails(emails);
+      return NextResponse.json(results);
+    } else {
+      // Single email (legacy support)
+      const { subject, preview, body } = body;
 
-    const emailContent = `Subject: ${subject}\n\nPreview: ${preview}\n\nBody: ${body}`;
+      if (!subject || !body) {
+        return NextResponse.json(
+          { error: "Missing subject or body" },
+          { status: 400 }
+        );
+      }
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo-instruct",
-      messages: [
-        {
-          role: "system",
-          content: `You are an email analyzer. Analyze emails and respond with ONLY valid JSON (no extra text):
+      const cleanedBody = cleanEmailBody(body);
+      const emailContent = `Subject: ${subject}\n\nBody:\n${cleanedBody}`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `Analyze email and respond with ONLY valid JSON:
 {
   "category": "Work|Personal|Promotions|Alerts|Other",
-  "summary": "brief summary in max 100 chars"
-}
+  "summary": "brief summary max 100 chars"
+}`,
+          },
+          {
+            role: "user",
+            content: emailContent,
+          },
+        ],
+        temperature: 0.2,
+        max_tokens: 150,
+      });
 
-Categories:
-- Work: Professional, meetings, work updates
-- Personal: Friends, family, personal matters
-- Promotions: Marketing, sales, newsletters, discounts
-- Alerts: Notifications, confirmations, alerts
-- Other: Miscellaneous`,
-        },
-        {
-          role: "user",
-          content: `Analyze this email:\n\n${emailContent}`,
-        },
-      ],
-      temperature: 0.3,
-      max_tokens: 200,
-    });
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error("No response from OpenAI");
+      }
 
-    const content = response.choices[0]?.message?.content;
-    if (!content) {
-      throw new Error("No response from OpenAI");
+      const result = JSON.parse(content);
+      return NextResponse.json({
+        category: result.category,
+        summary: result.summary,
+      });
     }
-
-    const result = JSON.parse(content);
-
-    return NextResponse.json({
-      category: result.category,
-      summary: result.summary,
-    });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Email analysis error:", errorMessage, error);

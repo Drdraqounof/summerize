@@ -2,12 +2,13 @@
 
 import { ReactNode, createContext, useContext, useState, useEffect } from "react";
 
-interface Email {
+export interface Email {
   id: string;
   from: string;
   subject: string;
   preview: string;
   body: string;
+  bodyHtml?: string;
   timestamp: Date;
   read: boolean;
   category?: string;
@@ -38,6 +39,7 @@ interface EmailContextType {
   markAsRead: (id: string) => void;
   addEmail: (email: Email) => void;
   analyzeEmail: (id: string) => Promise<void>;
+  batchAnalyzeEmails: (emails: Email[]) => Promise<void>;
   saveOnboardingAnswers: (answers: OnboardingAnswers) => void;
   saveConnectionProvider: (provider: string) => void;
   saveConnectedAccount: (account: ConnectedAccount) => void;
@@ -186,6 +188,7 @@ export function EmailProvider({ children }: { children: ReactNode }) {
         ...e,
         timestamp: new Date(e.date),
         read: false,
+        bodyHtml: e.bodyHtml,
         category: e.category,
         summary: e.summary,
         analyzed: e.analyzed || false,
@@ -242,6 +245,60 @@ export function EmailProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Aggressive batch analysis - send multiple emails in one request
+  const batchAnalyzeEmails = async (emailsToAnalyze: Email[]) => {
+    if (emailsToAnalyze.length === 0) return;
+
+    try {
+      const payload = emailsToAnalyze.map((e) => ({
+        id: e.id,
+        subject: e.subject,
+        body: e.body,
+      }));
+
+      const response = await fetch("/api/analyze-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          `API error: ${errorData.error || `Status ${response.status}`}`
+        );
+      }
+
+      const results = await response.json();
+
+      // Update all analyzed emails at once
+      const updated = emails.map((e) => {
+        if (results[e.id]) {
+          return {
+            ...e,
+            category: results[e.id].category,
+            summary: results[e.id].summary,
+            analyzed: true,
+          };
+        }
+        return e;
+      });
+
+      setEmails(updated);
+      localStorage.setItem("emails", JSON.stringify(updated));
+    } catch (error) {
+      console.error("Error in batch analysis:", error);
+      // Mark all as attempted
+      const updated = emails.map((e) =>
+        emailsToAnalyze.some((ta) => ta.id === e.id)
+          ? { ...e, analyzed: true }
+          : e
+      );
+      setEmails(updated);
+      localStorage.setItem("emails", JSON.stringify(updated));
+    }
+  };
+
   return (
     <EmailContext.Provider
       value={{
@@ -256,6 +313,7 @@ export function EmailProvider({ children }: { children: ReactNode }) {
         markAsRead,
         addEmail,
         analyzeEmail,
+        batchAnalyzeEmails,
         saveOnboardingAnswers,
         saveConnectionProvider,
         saveConnectedAccount,

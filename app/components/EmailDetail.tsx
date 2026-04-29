@@ -1,10 +1,10 @@
 "use client";
 
-import { useEmail } from "../providers";
+import { type Email, useEmail } from "../providers";
 import { useEffect } from "react";
 
 interface EmailDetailProps {
-  email: any;
+  email: Email;
 }
 
 const categoryColors: { [key: string]: string } = {
@@ -67,8 +67,12 @@ export default function EmailDetail({ email }: EmailDetailProps) {
         )}
       </div>
 
-      <div className="p-6 prose prose-sm max-w-none">
-        <p className="text-gray-700 whitespace-pre-wrap">{email.body}</p>
+      <div className="p-6 max-w-none text-gray-700 [&_a]:text-blue-600 [&_a]:underline [&_img]:h-auto [&_img]:max-w-full [&_table]:w-full [&_td]:align-top [&_th]:align-top">
+        {email.bodyHtml ? (
+          <div dangerouslySetInnerHTML={{ __html: email.bodyHtml }} />
+        ) : (
+          <p className="whitespace-pre-wrap">{email.body}</p>
+        )}
       </div>
 
       <div className="p-6 border-t border-gray-200 space-y-2">

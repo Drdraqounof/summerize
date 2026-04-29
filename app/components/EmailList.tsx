@@ -1,10 +1,10 @@
 "use client";
 
-import { useEmail } from "../providers";
-import { useEffect } from "react";
+import { type Email, useEmail } from "../providers";
+import { useEffect, useRef } from "react";
 
 interface EmailListProps {
-  emails: any[];
+  emails: Email[];
   onSelectEmail: (id: string) => void;
   selectedId: string | null;
 }
@@ -22,16 +22,24 @@ export default function EmailList({
   onSelectEmail,
   selectedId,
 }: EmailListProps) {
-  const { analyzeEmail } = useEmail();
+  const { batchAnalyzeEmails } = useEmail();
+  const batchedRef = useRef(false);
 
-  // Analyze emails when they load
+  // Batch analyze all unanalyzed emails in one request
   useEffect(() => {
-    emails.forEach((email) => {
-      if (!email.analyzed) {
-        analyzeEmail(email.id);
-      }
+    if (batchedRef.current || emails.length === 0) return;
+
+    const unanalyzedEmails = emails.filter((e) => !e.analyzed);
+    if (unanalyzedEmails.length === 0) {
+      batchedRef.current = true;
+      return;
+    }
+
+    batchedRef.current = true;
+    batchAnalyzeEmails(unanalyzedEmails).catch((error) => {
+      console.error("Batch analysis failed:", error);
     });
-  }, [emails, analyzeEmail]);
+  }, []); // Run only once on mount
 
   if (emails.length === 0) {
     return (
