@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import sanitizeHtml from "sanitize-html";
 import { getToken } from "@/lib/tokenStore";
 
 const GMAIL_API_URL = "https://www.googleapis.com/gmail/v1/users/me";
@@ -295,52 +294,24 @@ function sanitizeEmailHtml(
     })}${quote}`;
   });
 
-  return sanitizeHtml(rewrittenHtml, {
-    allowedAttributes: {
-      a: ["href", "name", "target", "rel"],
-      img: ["alt", "height", "src", "title", "width"],
-      td: ["colspan", "rowspan"],
-      th: ["colspan", "rowspan"],
-    },
-    allowedSchemes: ["http", "https", "mailto"],
-    allowedSchemesByTag: {
-      img: ["http", "https", "data"],
-    },
-    allowedTags: [
-      "a",
-      "b",
-      "blockquote",
-      "br",
-      "code",
-      "div",
-      "em",
-      "h1",
-      "h2",
-      "h3",
-      "h4",
-      "h5",
-      "h6",
-      "hr",
-      "img",
-      "li",
-      "ol",
-      "p",
-      "pre",
-      "span",
-      "strong",
-      "table",
-      "tbody",
-      "td",
-      "th",
-      "thead",
-      "tr",
-      "u",
-      "ul",
-    ],
-    transformTags: {
-      a: sanitizeHtml.simpleTransform("a", { rel: "noopener noreferrer", target: "_blank" }),
-    },
-  });
+  return basicSanitizeHtml(rewrittenHtml);
+}
+
+function basicSanitizeHtml(html: string): string {
+  return html
+    .replace(/<(script|style|iframe|object|embed|form|meta|link|base)[^>]*>[\s\S]*?<\/\1>/gi, "")
+    .replace(/<(script|style|iframe|object|embed|form|meta|link|base)[^>]*\/?>/gi, "")
+    .replace(/\s+on[a-z]+\s*=\s*(["']).*?\1/gi, "")
+    .replace(/\s+on[a-z]+\s*=\s*[^\s>]+/gi, "")
+    .replace(/\s+src\s*=\s*(["'])\s*javascript:[\s\S]*?\1/gi, ' src=""')
+    .replace(/\s+href\s*=\s*(["'])\s*javascript:[\s\S]*?\1/gi, ' href="#"')
+    .replace(/<a\b([^>]*)>/gi, (_match, attrs) => {
+      const safeAttrs = attrs
+        .replace(/\s+target\s*=\s*(["']).*?\1/gi, "")
+        .replace(/\s+rel\s*=\s*(["']).*?\1/gi, "");
+
+      return `<a${safeAttrs} target="_blank" rel="noopener noreferrer">`;
+    });
 }
 
 function buildInlineImageUrl({
