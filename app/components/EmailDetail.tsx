@@ -29,6 +29,13 @@ export default function EmailDetail({ email }: EmailDetailProps) {
       <div className="p-6 border-b border-gray-200">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">{email.subject}</h2>
 
+        {email.shouldNotify ? (
+          <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+            <p className="font-semibold">Flagged for your watchlist</p>
+            <p className="mt-1">{email.matchReason || "This email matches one of your chosen topics."}</p>
+          </div>
+        ) : null}
+
         <div className="space-y-2 mb-6">
           <div>
             <p className="text-sm text-gray-600">From</p>

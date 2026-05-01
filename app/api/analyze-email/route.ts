@@ -6,7 +6,29 @@ const openai = new OpenAI({
 });
 
 // In-memory cache for analyzed emails
-const analysisCache = new Map<string, { category: string; summary: string }>();
+const analysisCache = new Map<string, { category: string; summary: string; shouldNotify: boolean; matchReason: string }>();
+
+interface ScanPreferences {
+  reason?: string;
+  focusAreas?: string[];
+  customFocus?: string;
+}
+
+function buildPromptContext(scanPreferences?: ScanPreferences): string {
+  if (!scanPreferences) {
+    return "No user-specific watchlist was provided.";
+  }
+
+  const sections = [
+    scanPreferences.reason ? `User goal: ${scanPreferences.reason}` : "",
+    scanPreferences.focusAreas?.length
+      ? `Priority topics: ${scanPreferences.focusAreas.join("; ")}`
+      : "",
+    scanPreferences.customFocus ? `Custom watchlist: ${scanPreferences.customFocus}` : "",
+  ].filter(Boolean);
+
+  return sections.length > 0 ? sections.join("\n") : "No user-specific watchlist was provided.";
+}
 
 // Ultra-aggressive email cleaning - removes ALL noise, keeps only core content
 function cleanEmailBody(body: string): string {
@@ -95,8 +117,12 @@ function cleanEmailBody(body: string): string {
 }
 
 // Batch analyze multiple emails efficiently
-async function batchAnalyzeEmails(emails: Array<{ id: string; subject: string; body: string }>) {
-  const results: { [id: string]: { category: string; summary: string } } = {};
+async function batchAnalyzeEmails(
+  emails: Array<{ id: string; subject: string; body: string }>,
+  scanPreferences?: ScanPreferences,
+) {
+  const results: { [id: string]: { category: string; summary: string; shouldNotify: boolean; matchReason: string } } = {};
+  const promptContext = buildPromptContext(scanPreferences);
 
   // Process in parallel for speed, but with rate limiting
   const batches = [];
@@ -125,8 +151,14 @@ async function batchAnalyzeEmails(emails: Array<{ id: string; subject: string; b
                 content: `Analyze email and respond with ONLY valid JSON:
 {
   "category": "Work|Personal|Promotions|Alerts|Other",
-  "summary": "brief summary max 100 chars"
-}`,
+  "summary": "brief summary max 100 chars",
+  "shouldNotify": true,
+  "matchReason": "short reason why this matches the user's watchlist, or 'General inbox item'"
+}
+
+Use shouldNotify=true only when the email clearly matches the user's watchlist or stated goal.
+User watchlist:
+${promptContext}`,
               },
               {
                 role: "user",
@@ -134,7 +166,7 @@ async function batchAnalyzeEmails(emails: Array<{ id: string; subject: string; b
               },
             ],
             temperature: 0.2,
-            max_tokens: 150,
+            max_tokens: 220,
           });
 
           const content = response.choices[0]?.message?.content;
@@ -149,6 +181,8 @@ async function batchAnalyzeEmails(emails: Array<{ id: string; subject: string; b
           results[email.id] = {
             category: "Other",
             summary: "Analysis failed",
+            shouldNotify: false,
+            matchReason: "General inbox item",
           };
         }
       })
@@ -169,26 +203,33 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    const payload = Array.isArray(body) ? { emails: body } : body;
+    const scanPreferences = payload.scanPreferences as ScanPreferences | undefined;
 
     // Check if this is a batch request or single email
-    if (Array.isArray(body)) {
+    if (Array.isArray(body) || Array.isArray(payload.emails)) {
       // Batch analysis
-      const emails = body as Array<{ id: string; subject: string; body: string }>;
-      const results = await batchAnalyzeEmails(emails);
+      const emails = (Array.isArray(body) ? body : payload.emails) as Array<{
+        id: string;
+        subject: string;
+        body: string;
+      }>;
+      const results = await batchAnalyzeEmails(emails, scanPreferences);
       return NextResponse.json(results);
     } else {
       // Single email (legacy support)
-      const { subject, preview, body } = body;
+      const { subject, body: emailBody } = payload;
 
-      if (!subject || !body) {
+      if (!subject || !emailBody) {
         return NextResponse.json(
           { error: "Missing subject or body" },
           { status: 400 }
         );
       }
 
-      const cleanedBody = cleanEmailBody(body);
+      const cleanedBody = cleanEmailBody(emailBody);
       const emailContent = `Subject: ${subject}\n\nBody:\n${cleanedBody}`;
+      const promptContext = buildPromptContext(scanPreferences);
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o-mini",
@@ -198,8 +239,14 @@ export async function POST(request: NextRequest) {
             content: `Analyze email and respond with ONLY valid JSON:
 {
   "category": "Work|Personal|Promotions|Alerts|Other",
-  "summary": "brief summary max 100 chars"
-}`,
+  "summary": "brief summary max 100 chars",
+  "shouldNotify": true,
+  "matchReason": "short reason why this matches the user's watchlist, or 'General inbox item'"
+}
+
+Use shouldNotify=true only when the email clearly matches the user's watchlist or stated goal.
+User watchlist:
+${promptContext}`,
           },
           {
             role: "user",
@@ -207,7 +254,7 @@ export async function POST(request: NextRequest) {
           },
         ],
         temperature: 0.2,
-        max_tokens: 150,
+        max_tokens: 220,
       });
 
       const content = response.choices[0]?.message?.content;
@@ -219,6 +266,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         category: result.category,
         summary: result.summary,
+        shouldNotify: Boolean(result.shouldNotify),
+        matchReason: result.matchReason || "General inbox item",
       });
     }
   } catch (error) {

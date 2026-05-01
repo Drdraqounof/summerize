@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEmail } from "../providers";
 
 const providerOptions = [
@@ -27,8 +27,9 @@ const providerOptions = [
   },
 ];
 
-export default function ConnectPage() {
+function ConnectPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const {
     isLoggedIn,
     onboardingAnswers,
@@ -39,6 +40,14 @@ export default function ConnectPage() {
   } = useEmail();
   const [selectedProvider, setSelectedProvider] = useState(connectionProvider ?? "gmail");
   const [statusMessage, setStatusMessage] = useState("");
+  const googleStatus = searchParams.get("google");
+  const connectedEmail = searchParams.get("email");
+  const connectedName = searchParams.get("name");
+  const oauthStatusMessage = googleStatus === "connected" && connectedEmail
+    ? `Connected Gmail account: ${connectedEmail}`
+    : googleStatus && googleStatus !== "connected"
+      ? "Google connection was not completed. Try again."
+      : "";
 
   useEffect(() => {
     const savedUser = localStorage.getItem("emailUser");
@@ -54,28 +63,16 @@ export default function ConnectPage() {
   }, [isLoggedIn, onboardingAnswers, router]);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const googleStatus = params.get("google");
-    const email = params.get("email");
-    const name = params.get("name");
-
-    if (googleStatus === "connected" && email) {
+    if (googleStatus === "connected" && connectedEmail) {
       saveConnectedAccount({
         provider: "gmail",
-        email,
-        name: name ?? undefined,
+        email: connectedEmail,
+        name: connectedName ?? undefined,
       });
-      setSelectedProvider("gmail");
-      setStatusMessage(`Connected Gmail account: ${email}`);
-      window.history.replaceState({}, "", "/connect");
+      router.replace("/connect");
       return;
     }
-
-    if (googleStatus && googleStatus !== "connected") {
-      setStatusMessage("Google connection was not completed. Try again.");
-      window.history.replaceState({}, "", "/connect");
-    }
-  }, [saveConnectedAccount]);
+  }, [connectedEmail, connectedName, googleStatus, router, saveConnectedAccount]);
 
   const handleContinue = () => {
     saveConnectionProvider(selectedProvider);
@@ -145,9 +142,9 @@ export default function ConnectPage() {
           })}
         </div>
 
-        {statusMessage ? (
+        {oauthStatusMessage || statusMessage ? (
           <div className="mt-6 rounded-[1.5rem] border border-green-200 bg-white px-5 py-4 text-sm text-slate-700">
-            {statusMessage}
+            {oauthStatusMessage || statusMessage}
           </div>
         ) : null}
 
@@ -179,5 +176,13 @@ export default function ConnectPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ConnectPage() {
+  return (
+    <Suspense fallback={null}>
+      <ConnectPageContent />
+    </Suspense>
   );
 }

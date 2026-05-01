@@ -5,12 +5,16 @@ import { useRouter } from "next/navigation";
 import { type Email, useEmail } from "../providers";
 import EmailList from "../components/EmailList";
 import EmailDetail from "../components/EmailDetail";
+import { getFocusAreaLabels } from "@/lib/onboarding";
 
 export default function InboxPage() {
   const router = useRouter();
-  const { user, logout, emails, connectionProvider, connectedAccount } = useEmail();
+  const { user, logout, emails, connectionProvider, connectedAccount, onboardingAnswers } = useEmail();
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const focusLabels = getFocusAreaLabels(onboardingAnswers?.selectedFocusAreas ?? []);
+  const hasSavedUser = typeof window !== "undefined" ? localStorage.getItem("emailUser") : null;
+  const hasSavedProvider = typeof window !== "undefined" ? localStorage.getItem("emailConnectionProvider") : null;
+  const isLoading = !hasSavedUser || !hasSavedProvider;
 
   console.log("📄 PAGE: Inbox page loaded");
   console.log("📄 user from context:", user);
@@ -34,7 +38,6 @@ export default function InboxPage() {
       // Logged in, finish loading
       console.log("✅ User authenticated:", savedUser);
       console.log("✅ INBOX PAGE SUCCESSFULLY DETECTED - User can now see emails");
-      setIsLoading(false);
     }
   }, [router]);
 
@@ -91,6 +94,17 @@ export default function InboxPage() {
           <div className="p-4 border-b border-gray-200">
             <h2 className="font-bold text-gray-900">Inbox</h2>
             <p className="text-sm text-gray-600">{emails.length} emails</p>
+            {focusLabels.length > 0 || onboardingAnswers?.customFocus ? (
+              <div className="mt-3 rounded-2xl bg-green-50 p-3 text-xs text-green-900">
+                <p className="font-semibold uppercase tracking-[0.18em] text-green-700">AI watchlist</p>
+                <p className="mt-1">
+                  {[
+                    ...focusLabels,
+                    ...(onboardingAnswers?.customFocus ? [onboardingAnswers.customFocus] : []),
+                  ].join(" • ")}
+                </p>
+              </div>
+            ) : null}
           </div>
           <EmailList
             emails={emails}

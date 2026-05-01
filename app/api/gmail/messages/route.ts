@@ -142,8 +142,6 @@ export async function GET(request: NextRequest) {
           body: extractedContent.textBody,
           bodyHtml: extractedContent.htmlBody,
           date: new Date(parseInt(msg.internalDate)).toLocaleString(),
-          category: null as any,
-          summary: null as any,
           analyzed: false,
         };
       });

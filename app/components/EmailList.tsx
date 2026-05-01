@@ -39,7 +39,7 @@ export default function EmailList({
     batchAnalyzeEmails(unanalyzedEmails).catch((error) => {
       console.error("Batch analysis failed:", error);
     });
-  }, []); // Run only once on mount
+  }, [batchAnalyzeEmails, emails]);
 
   if (emails.length === 0) {
     return (
@@ -70,6 +70,11 @@ export default function EmailList({
                 <p className="text-sm font-semibold text-gray-900 truncate">
                   {email.from}
                 </p>
+                {email.shouldNotify ? (
+                  <span className="text-xs px-2 py-0.5 rounded-full whitespace-nowrap bg-emerald-100 text-emerald-700">
+                    Notify
+                  </span>
+                ) : null}
                 {email.category ? (
                   <span
                     className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${
@@ -84,6 +89,9 @@ export default function EmailList({
               </div>
               <p className="text-sm text-gray-700 truncate">{email.subject}</p>
               <p className="text-xs text-gray-500 truncate">{email.preview}</p>
+              {email.shouldNotify && email.matchReason ? (
+                <p className="text-xs text-emerald-700 truncate mt-1">{email.matchReason}</p>
+              ) : null}
               <p className="text-xs text-gray-400 mt-1">
                 {new Date(email.timestamp).toLocaleDateString()}
               </p>

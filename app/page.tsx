@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEmail } from "./providers";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -119,10 +120,12 @@ export default function Home() {
             variants={fadeUp}
             transition={{ duration: 0.6 }}
           >
-            <img
+            <Image
               src="/MailTurtleLogo.png"
               alt="mailturtle logo"
-              className="w-full h-full object-contain"
+              fill
+              sizes="150px"
+              className="object-contain"
             />
           </motion.div>
           <motion.h1

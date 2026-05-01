@@ -1,23 +1,37 @@
 "use client";
 
 import { useEffect } from "react";
-import { useEmail } from "../providers";
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{
+    outcome: "accepted" | "dismissed";
+    platform: string;
+  }>;
+}
+
+declare global {
+  interface Window {
+    deferredPrompt?: BeforeInstallPromptEvent | null;
+  }
+}
 
 export function PWAInstallPrompt() {
   const handleInstall = async () => {
-    const event = (window as any).deferredPrompt;
+    const event = window.deferredPrompt;
     if (event) {
-      event.prompt();
+      await event.prompt();
       const { outcome } = await event.userChoice;
       console.log(`User response to the install prompt: ${outcome}`);
-      (window as any).deferredPrompt = null;
+      window.deferredPrompt = null;
     }
   };
 
   useEffect(() => {
-    const handler = (e: any) => {
-      e.preventDefault();
-      (window as any).deferredPrompt = e;
+    const handler = (event: Event) => {
+      const installEvent = event as BeforeInstallPromptEvent;
+      installEvent.preventDefault();
+      window.deferredPrompt = installEvent;
     };
 
     window.addEventListener("beforeinstallprompt", handler);

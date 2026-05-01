@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useEmail } from "../providers";
+import { focusAreaOptions } from "@/lib/onboarding";
 
 const experienceOptions = [
   { value: "first-time", label: "This is my first time using a tool like this" },
@@ -17,6 +18,10 @@ export default function QuestionsPage() {
   const [hasUsedSimilarApps, setHasUsedSimilarApps] = useState(
     onboardingAnswers?.hasUsedSimilarApps ?? ""
   );
+  const [selectedFocusAreas, setSelectedFocusAreas] = useState<string[]>(
+    onboardingAnswers?.selectedFocusAreas ?? []
+  );
+  const [customFocus, setCustomFocus] = useState(onboardingAnswers?.customFocus ?? "");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -24,6 +29,14 @@ export default function QuestionsPage() {
       router.replace("/login");
     }
   }, [isLoggedIn, router]);
+
+  const toggleFocusArea = (focusId: string) => {
+    setSelectedFocusAreas((current) =>
+      current.includes(focusId)
+        ? current.filter((value) => value !== focusId)
+        : [...current, focusId]
+    );
+  };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -39,9 +52,16 @@ export default function QuestionsPage() {
       return;
     }
 
+    if (selectedFocusAreas.length === 0 && !customFocus.trim()) {
+      setError("Pick at least one email type to watch, or describe one in your own words.");
+      return;
+    }
+
     saveOnboardingAnswers({
       reason: reason.trim(),
       hasUsedSimilarApps,
+      selectedFocusAreas,
+      customFocus: customFocus.trim(),
     });
 
     router.push("/connect");
@@ -54,38 +74,82 @@ export default function QuestionsPage() {
           <p className="mb-3 inline-flex rounded-full bg-green-100 px-4 py-1 text-sm font-semibold text-green-800">
             Step 1 of 2
           </p>
-          <h1 className="text-4xl font-bold text-slate-900">Tell us how you plan to use mailturtle today</h1>
+          <h1 className="text-4xl font-bold text-slate-900">Tell us which emails the AI should watch for</h1>
           <p className="mt-3 max-w-2xl text-base text-slate-700">
-            This helps us shape the setup flow before you connect an inbox.
+            Choose the topics that matter to you and mailturtle will flag matching emails after you connect your inbox.
           </p>
         </div>
 
         <div className="mb-8 grid gap-4 md:grid-cols-3">
           <div className="rounded-[1.5rem] border border-green-200 bg-green-50/80 p-5">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-green-700">Personalize</p>
-            <p className="mt-2 text-sm text-slate-700">We use your answers to tailor what you connect first and what value you should see fastest.</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-green-700">Watchlist</p>
+            <p className="mt-2 text-sm text-slate-700">Pick the kinds of emails that deserve a heads-up instead of getting buried in the inbox.</p>
           </div>
           <div className="rounded-[1.5rem] border border-green-200 bg-white p-5">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-green-700">Stay focused</p>
-            <p className="mt-2 text-sm text-slate-700">Keep the setup narrow: goal first, provider second, inbox view third.</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-green-700">AI matching</p>
+            <p className="mt-2 text-sm text-slate-700">Shopping picks up grocery deals, promotions, coupons, and other store-related emails automatically.</p>
           </div>
           <div className="rounded-[1.5rem] border border-green-200 bg-green-50/80 p-5">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-green-700">No clutter</p>
-            <p className="mt-2 text-sm text-slate-700">Short prompts now, deeper automations later once your mailbox is connected.</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-green-700">Less noise</p>
+            <p className="mt-2 text-sm text-slate-700">The app still analyzes all emails, but only preference matches get the extra notification badge.</p>
           </div>
         </div>
 
         <form className="space-y-8" onSubmit={handleSubmit}>
           <div>
             <label htmlFor="reason" className="mb-3 block text-lg font-semibold text-slate-900">
-              Why are you using this today?
+              What should the AI help you stay on top of?
             </label>
             <textarea
               id="reason"
               value={reason}
               onChange={(event) => setReason(event.target.value)}
-              placeholder="Examples: cleaning up a busy inbox, sorting client emails, tracking urgent messages"
+              placeholder="Examples: keep grocery promotions visible, surface school reminders, catch travel updates before they are missed"
               className="min-h-36 w-full rounded-2xl border border-green-200 bg-green-50/50 px-4 py-4 text-slate-900 outline-none transition focus:border-green-500 focus:bg-white focus:ring-4 focus:ring-green-100"
+            />
+          </div>
+
+          <fieldset>
+            <legend className="mb-3 block text-lg font-semibold text-slate-900">
+              Which emails should trigger extra attention?
+            </legend>
+            <div className="grid gap-4 md:grid-cols-2">
+              {focusAreaOptions.map((option) => {
+                const selected = selectedFocusAreas.includes(option.id);
+
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => toggleFocusArea(option.id)}
+                    className={`rounded-[1.5rem] border p-5 text-left transition ${
+                      selected
+                        ? "border-green-600 bg-green-100 shadow-sm"
+                        : "border-green-200 bg-white hover:border-green-400 hover:bg-green-50"
+                    }`}
+                  >
+                    <p className="text-sm font-semibold uppercase tracking-[0.18em] text-green-700">
+                      {option.question}
+                    </p>
+                    <h2 className="mt-2 text-xl font-semibold text-slate-900">{option.label}</h2>
+                    <p className="mt-2 text-sm text-slate-700">{option.description}</p>
+                    <p className="mt-3 text-xs text-slate-500">Looks for: {option.signals.join(", ")}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+
+          <div>
+            <label htmlFor="customFocus" className="mb-3 block text-lg font-semibold text-slate-900">
+              Anything else the AI should watch for?
+            </label>
+            <input
+              id="customFocus"
+              value={customFocus}
+              onChange={(event) => setCustomFocus(event.target.value)}
+              placeholder="Examples: job offers, package delays, soccer team updates"
+              className="w-full rounded-2xl border border-green-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-green-500 focus:ring-4 focus:ring-green-100"
             />
           </div>
 
@@ -120,7 +184,7 @@ export default function QuestionsPage() {
           {error ? <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-slate-600">Next, you will choose which email account to connect.</p>
+            <p className="text-sm text-slate-600">Next, you will connect an inbox so these rules can be used during analysis.</p>
             <button
               type="submit"
               className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-green-600 to-emerald-600 px-8 py-3 font-semibold text-white transition hover:from-green-700 hover:to-emerald-700"

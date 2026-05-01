@@ -1,6 +1,7 @@
 "use client";
 
 import { ReactNode, createContext, useContext, useState, useEffect } from "react";
+import { getFocusAreaPromptSummary, type OnboardingAnswers } from "@/lib/onboarding";
 
 export interface Email {
   id: string;
@@ -14,17 +15,33 @@ export interface Email {
   category?: string;
   summary?: string;
   analyzed?: boolean;
-}
-
-interface OnboardingAnswers {
-  reason: string;
-  hasUsedSimilarApps: string;
+  shouldNotify?: boolean;
+  matchReason?: string;
 }
 
 interface ConnectedAccount {
   provider: string;
   email: string;
   name?: string;
+}
+
+interface GmailApiEmail {
+  id: string;
+  from: string;
+  subject: string;
+  preview: string;
+  body: string;
+  bodyHtml?: string;
+  date: string;
+  category?: string;
+  summary?: string;
+  analyzed?: boolean;
+  shouldNotify?: boolean;
+  matchReason?: string;
+}
+
+interface GmailMessagesResponse {
+  emails: GmailApiEmail[];
 }
 
 interface EmailContextType {
@@ -183,15 +200,17 @@ export function EmailProvider({ children }: { children: ReactNode }) {
         );
       }
 
-      const data = await response.json();
-      const gmailEmails: Email[] = data.emails.map((e: any) => ({
-        ...e,
-        timestamp: new Date(e.date),
+      const data: GmailMessagesResponse = await response.json();
+      const gmailEmails: Email[] = data.emails.map((emailRecord) => ({
+        ...emailRecord,
+        timestamp: new Date(emailRecord.date),
         read: false,
-        bodyHtml: e.bodyHtml,
-        category: e.category,
-        summary: e.summary,
-        analyzed: e.analyzed || false,
+        bodyHtml: emailRecord.bodyHtml,
+        category: emailRecord.category,
+        summary: emailRecord.summary,
+        analyzed: emailRecord.analyzed || false,
+        shouldNotify: emailRecord.shouldNotify,
+        matchReason: emailRecord.matchReason,
       }));
 
       setEmails(gmailEmails);
@@ -215,6 +234,13 @@ export function EmailProvider({ children }: { children: ReactNode }) {
           subject: email.subject,
           preview: email.preview,
           body: email.body,
+          scanPreferences: onboardingAnswers
+            ? {
+                reason: onboardingAnswers.reason,
+                focusAreas: getFocusAreaPromptSummary(onboardingAnswers.selectedFocusAreas),
+                customFocus: onboardingAnswers.customFocus,
+              }
+            : undefined,
         }),
       });
 
@@ -225,11 +251,11 @@ export function EmailProvider({ children }: { children: ReactNode }) {
         );
       }
 
-      const { category, summary } = await response.json();
+      const { category, summary, shouldNotify, matchReason } = await response.json();
 
       const updated = emails.map((e) =>
         e.id === id
-          ? { ...e, category, summary, analyzed: true }
+          ? { ...e, category, summary, analyzed: true, shouldNotify, matchReason }
           : e
       );
       setEmails(updated);
@@ -259,7 +285,16 @@ export function EmailProvider({ children }: { children: ReactNode }) {
       const response = await fetch("/api/analyze-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          emails: payload,
+          scanPreferences: onboardingAnswers
+            ? {
+                reason: onboardingAnswers.reason,
+                focusAreas: getFocusAreaPromptSummary(onboardingAnswers.selectedFocusAreas),
+                customFocus: onboardingAnswers.customFocus,
+              }
+            : undefined,
+        }),
       });
 
       if (!response.ok) {
@@ -279,6 +314,8 @@ export function EmailProvider({ children }: { children: ReactNode }) {
             category: results[e.id].category,
             summary: results[e.id].summary,
             analyzed: true,
+            shouldNotify: results[e.id].shouldNotify,
+            matchReason: results[e.id].matchReason,
           };
         }
         return e;
