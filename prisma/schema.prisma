@@ -4,7 +4,6 @@
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 generator client {
@@ -13,69 +12,67 @@ generator client {
 
 // ========== USER & LOGIN ==========
 
-// Store user information and Google login details
 model User {
-  id                String    @id @default(cuid())
-  email             String    @unique
+  id                String                   @id @default(cuid())
+  email             String                   @unique
   name              String?
-  googleId          String?   @unique         // ID from Google login
-  googleAccessToken String?                   // Permission token for Gmail access
-  picture           String?                   // User profile picture
+  googleId          String?                  @unique
+  googleAccessToken String?
+  picture           String?
   lastLoginAt       DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
 
-  // Connections to other tables
   emails            Email[]
   rules             CustomRule[]
   preferences       UserPreference?
-  feedback          ClassificationFeedback[]
+  aiInteractions    AIInteraction[]
+  activities        UserActivity[]
+  quotas            UserQuota[]
 
   @@index([email])
 }
 
-// User settings and preferences
 model UserPreference {
-  id                String    @id @default(cuid())
-  userId            String    @unique
-  autoAnalyze       Boolean   @default(true)     // Automatically analyze incoming emails
-  theme             String    @default("light")   // UI theme: light or dark
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  autoAnalyze Boolean  @default(true)
+  theme       String   @default("light")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
 
 // ========== EMAILS ==========
 
-// Store emails fetched from Gmail
 model Email {
-  id            String    @id @default(cuid())
-  userId        String                         // Which user owns this email
-  gmailId       String?   @unique              // Gmail's email ID
-  subject       String
-  from          String
-  to            String
-  cc            String?
-  preview       String?                        // First few lines of email
-  body          String?                        // Full email content
-  receivedAt    DateTime
-  analyzedAt    DateTime?                      // When AI analyzed it
-  sentiment     String?                        // positive, negative, or neutral
-  importance    String    @default("NORMAL")   // HIGH, NORMAL, or LOW
-  isRead        Boolean   @default(false)
-  isSpam        Boolean   @default(false)
-  isFlagged     Boolean   @default(false)
-  summary       String?                        // AI-generated short summary
-  keyPoints     String?                        // Important points from email
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id         String                   @id @default(cuid())
+  userId     String
+  gmailId    String?                  @unique
+  subject    String
+  from       String
+  to         String
+  cc         String?
+  preview    String?
+  body       String?
+  receivedAt DateTime
+  analyzedAt DateTime?
+  sentiment  String?
+  importance String                   @default("NORMAL")
+  isRead     Boolean                  @default(false)
+  isSpam     Boolean                  @default(false)
+  isFlagged  Boolean                  @default(false)
+  summary    String?
+  keyPoints  String?
+  createdAt  DateTime                 @default(now())
+  updatedAt  DateTime                 @updatedAt
 
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category      EmailCategoryRecord?           // What category it belongs to
-  feedback      ClassificationFeedback[]       // User corrections
+  user       User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category   EmailCategoryRecord?
+  aiLogs     AIInteraction[]
 
   @@index([userId])
   @@index([gmailId])
@@ -83,17 +80,16 @@ model Email {
   @@index([isSpam])
 }
 
-// Email category assignments
 model EmailCategoryRecord {
-  id            String    @id @default(cuid())
-  emailId       String    @unique
-  category      String    // WORK, PERSONAL, PROMOTIONS, ALERTS, OTHER
-  confidence    Float     @default(0.5)        // How sure is the AI (0-100%)
-  aiModel       String                         // Which AI made this decision
-  userConfirmed Boolean   @default(false)      // Did user confirm it was right?
-  createdAt     DateTime  @default(now())
+  id            String   @id @default(cuid())
+  emailId        String   @unique
+  category       String
+  confidence     Float    @default(0.5)
+  aiModel        String
+  userConfirmed  Boolean  @default(false)
+  createdAt      DateTime @default(now())
 
-  email         Email     @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  email          Email    @relation(fields: [emailId], references: [id], onDelete: Cascade)
 
   @@index([emailId])
   @@index([category])
@@ -101,18 +97,17 @@ model EmailCategoryRecord {
 
 // ========== CUSTOM RULES ==========
 
-// Let users create their own email sorting rules
 model CustomRule {
-  id            String    @id @default(cuid())
-  userId        String
-  name          String                         // e.g., "All from boss to Work"
-  isActive      Boolean   @default(true)
-  ruleType      String                         // "sender", "subject", "keyword"
-  condition     String                         // The rule logic (JSON)
-  targetCategory String                        // Where to file matching emails
-  createdAt     DateTime  @default(now())
+  id             String   @id @default(cuid())
+  userId         String
+  name           String
+  isActive       Boolean  @default(true)
+  ruleType       String
+  condition      String
+  targetCategory String
+  createdAt      DateTime @default(now())
 
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([isActive])
@@ -120,194 +115,58 @@ model CustomRule {
 
 // ========== AI TRACKING ==========
 
-// Log every time we use AI to track usage and costs
 model AIInteraction {
-  id            String    @id @default(cuid())
+  id            String   @id @default(cuid())
   userId        String
   emailId       String?
-  action        String                         // "categorize" or "summarize"
-  tokensUsed    Int       @default(0)          // How many tokens (words) used
-  estimatedCost Float     @default(0)          // Cost in USD
-  responseTime  Int?                           // How long it took (milliseconds)
-  success       Boolean   @default(true)       // Did it work?
-  errorMessage  String?                        // If failed, why?
-  createdAt     DateTime  @default(now())
+  action        String
+  tokensUsed    Int      @default(0)
+  estimatedCost Float    @default(0)
+  responseTime  Int?
+  success       Boolean  @default(true)
+  errorMessage  String?
+  createdAt     DateTime @default(now())
 
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email         Email?   @relation(fields: [emailId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+  @@index([emailId])
   @@index([createdAt])
 }
 
-// ========== USER FEEDBACK ==========
 
-// When users correct AI mistakes, save it to improve the AI
-model ClassificationFeedback {
-  id            String    @id @default(cuid())
-  userId        String
-  emailId       String
-  aiCategory    String                         // What AI thought
-  correctCategory String                       // What's actually correct
-  feedbackType  String                         // "wrong" or "right"
-  createdAt     DateTime  @default(now())
-
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  email         Email     @relation(fields: [emailId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@unique([userId, emailId])
-}
 
 // ========== USAGE TRACKING ==========
 
-// Track what users do each day
 model UserActivity {
-  id            String    @id @default(cuid())
-  userId        String
-  date          DateTime  @db.Date
-  emailsAnalyzed Int      @default(0)          // How many emails analyzed
-  aiCallsMade   Int       @default(0)          // How many times we called AI
-  tokenUsed     Int       @default(0)          // Total tokens used
-  createdAt     DateTime  @default(now())
+  id             String   @id @default(cuid())
+  userId         String
+  date           DateTime @db.Date
+  emailsAnalyzed Int      @default(0)
+  aiCallsMade    Int      @default(0)
+  tokenUsed      Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@unique([userId, date])
 }
 
-// Monthly usage limits per user
 model UserQuota {
-  id            String    @id @default(cuid())
-  userId        String    @unique
-  month         String                         // "2024-04"
-  callsUsed     Int       @default(0)          // AI calls made this month
-  callsLimit    Int       @default(10000)      // Max allowed per month
-  costUsed      Float     @default(0)          // Money spent this month
-  costLimit     Float     @default(100)        // Max budget per month
-  resetAt       DateTime                       // When it resets
-  createdAt     DateTime  @default(now())
+  id         String   @id @default(cuid())
+  userId     String
+  month      String
+  callsUsed  Int      @default(0)
+  callsLimit Int      @default(10000)
+  costUsed   Float    @default(0)
+  costLimit  Float    @default(100)
+  resetAt    DateTime
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-}
-
-// Track progress of each student on each campaign
-model StudentCampaignStatus {
-  id            String    @id @default(cuid())
-  studentId     String
-  campaignId    String
-  status        ProgressStatus @default(NOT_STARTED)
-  emailsSent    Int       @default(0)
-  emailsReceived Int      @default(0)
-  progress      Int       @default(0) // Percentage 0-100
-  notes         String?
-  completedAt   DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Relations
-  student       Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  campaign      Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-
-  @@unique([studentId, campaignId])
-  @@index([studentId])
-  @@index([campaignId])
-  @@index([status])
-}
-
-enum ProgressStatus {
-  NOT_STARTED
-  IN_PROGRESS
-  COMPLETED
-  FAILED
-}
-
-// Reminders for students or campaigns
-model Reminder {
-  id            String    @id @default(cuid())
-  teacherId     String
-  campaignId    String?
-  title         String
-  description   String?
-  type          ReminderType
-  dueDate       DateTime
-  status        ReminderStatus @default(ACTIVE)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Relations
-  teacher       Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  campaign      Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-  studentReminders StudentReminder[]
-
-  @@index([teacherId])
-  @@index([campaignId])
-  @@index([dueDate])
-  @@index([status])
-}
-
-enum ReminderType {
-  EMAIL_CHECK
-  DEADLINE
-  FOLLOWUP
-  ANNOUNCEMENT
-  OTHER
-}
-
-enum ReminderStatus {
-  ACTIVE
-  COMPLETED
-  DISMISSED
-}
-
-// Track reminder assignments to students
-model StudentReminder {
-  id            String    @id @default(cuid())
-  studentId     String
-  reminderId    String
-  status        ReminderStatus @default(ACTIVE)
-  completedAt   DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Relations
-  student       Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  reminder      Reminder  @relation(fields: [reminderId], references: [id], onDelete: Cascade)
-
-  @@unique([studentId, reminderId])
-  @@index([studentId])
-  @@index([reminderId])
-}
-
-// Email records for students
-model StudentEmail {
-  id            String    @id @default(cuid())
-  studentId     String
-  from          String
-  to            String
-  subject       String
-  preview       String?
-  body          String?
-  category      String?   // From OpenAI analysis
-  summary       String?   // From OpenAI analysis
-  analyzedAt    DateTime?
-  receivedAt    DateTime
-  createdAt     DateTime  @default(now())
-
-  // Relations
-  student       Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
-  @@index([studentId])
-  @@index([category])
-  @@index([receivedAt])
-}
-
-// Teacher dashboard statistics (cached)
-model TeacherStats {
-  id            String    @id @default(cuid())
-  teacherId     String    @unique
-  totalStudents Int       @default(0)
-  activeCampaigns Int     @default(0)
-  pendingReminders Int    @default(0)
-  lastUpdated   DateTime  @default(now())
-
-  @@index([teacherId])
+  @@unique([userId, month])
 }

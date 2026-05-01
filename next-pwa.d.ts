@@ -6,7 +6,7 @@ declare module 'next-pwa' {
     register?: boolean;
     skipWaiting?: boolean;
     sw?: string;
-    runtimeCaching?: any[];
+    runtimeCaching?: unknown[];
     disable?: boolean;
     buildExcludes?: string[];
     publicExcludes?: string[];
