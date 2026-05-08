@@ -1,8 +1,12 @@
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
+import * as PrismaPkg from "@prisma/client";
+
+// Some Prisma client distributions / adapters can change the export shape.
+// Load the runtime export defensively and fall back to any available export.
+const PrismaClient: any = (PrismaPkg as any).PrismaClient ?? (PrismaPkg as any).default ?? (PrismaPkg as any);
 
 const globalForPrisma = globalThis as unknown as {
-  prisma?: PrismaClient;
+  prisma?: any;
 };
 
 const connectionString = process.env.DATABASE_URL;
