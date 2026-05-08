@@ -1,8 +1,16 @@
 export interface OnboardingAnswers {
-  reason: string;
-  hasUsedSimilarApps: string;
+  hasUsedAiBefore: string;
   selectedFocusAreas: string[];
-  customFocus: string;
+  assistantStyle: string;
+  notificationFrequency: string;
+}
+
+interface OnboardingPreferenceSource {
+  hasUsedAiBefore: string | null;
+  focusAreas: string[];
+  assistantStyle: string | null;
+  notificationFrequency: string | null;
+  onboardingCompleted: boolean;
 }
 
 export interface FocusAreaOption {
@@ -15,48 +23,54 @@ export interface FocusAreaOption {
 
 export const focusAreaOptions: FocusAreaOption[] = [
   {
-    id: "shopping",
-    question: "Do you like shopping?",
-    label: "Shopping deals",
-    description: "Track groceries, loyalty offers, coupons, flash sales, and order updates.",
-    signals: ["grocery", "promotion", "discount", "coupon", "sale", "order"],
-  },
-  {
-    id: "bills",
-    question: "Do you want bills and due dates flagged?",
-    label: "Bills and payments",
-    description: "Catch invoices, payment reminders, renewal notices, and account alerts.",
-    signals: ["invoice", "bill", "payment due", "renewal", "statement"],
-  },
-  {
-    id: "travel",
-    question: "Do you travel often?",
-    label: "Travel plans",
-    description: "Pull out flight changes, hotel bookings, ride receipts, and itinerary emails.",
-    signals: ["flight", "hotel", "booking", "trip", "itinerary"],
+    id: "groceries",
+    question: "Should grocery emails stand out?",
+    label: "Groceries",
+    description: "Catch grocery receipts, pickup notices, delivery updates, and store reminders.",
+    signals: ["grocery", "instacart", "pickup", "delivery", "receipt", "store"],
   },
   {
     id: "work",
-    question: "Do you want work messages separated fast?",
-    label: "Work and clients",
-    description: "Highlight client requests, project updates, meeting notes, and team follow-ups.",
-    signals: ["client", "meeting", "project", "deadline", "team"],
+    question: "Should work email get priority?",
+    label: "Work",
+    description: "Highlight coworker messages, project updates, meeting notes, and client follow-ups.",
+    signals: ["client", "project", "meeting", "deadline", "team", "manager"],
   },
   {
-    id: "family",
-    question: "Do you want family and school updates noticed?",
-    label: "Family and school",
-    description: "Watch for school reminders, family plans, event invites, and shared updates.",
-    signals: ["school", "family", "event", "reminder", "invite"],
+    id: "events",
+    question: "Should event messages be easier to spot?",
+    label: "Events",
+    description: "Pull out invitations, calendars, ticket confirmations, and schedule changes.",
+    signals: ["event", "invite", "ticket", "calendar", "schedule", "webinar"],
   },
   {
-    id: "health",
-    question: "Should health reminders stand out?",
-    label: "Health and appointments",
-    description: "Spot prescriptions, doctor visits, lab results, and appointment confirmations.",
-    signals: ["appointment", "doctor", "prescription", "clinic", "results"],
+    id: "deals",
+    question: "Do you want promotions grouped for quick review?",
+    label: "Deals",
+    description: "Watch for discounts, coupon drops, loyalty offers, and sale announcements.",
+    signals: ["deal", "discount", "coupon", "promotion", "sale", "offer"],
   },
 ];
+
+export function mapUserPreferenceToOnboardingAnswers(
+  preferences: OnboardingPreferenceSource | null | undefined,
+): OnboardingAnswers | null {
+  if (
+    !preferences?.onboardingCompleted ||
+    !preferences.hasUsedAiBefore ||
+    !preferences.assistantStyle ||
+    !preferences.notificationFrequency
+  ) {
+    return null;
+  }
+
+  return {
+    hasUsedAiBefore: preferences.hasUsedAiBefore,
+    selectedFocusAreas: preferences.focusAreas,
+    assistantStyle: preferences.assistantStyle,
+    notificationFrequency: preferences.notificationFrequency,
+  };
+}
 
 export function getFocusAreaLabels(selectedFocusAreas: string[]): string[] {
   return selectedFocusAreas

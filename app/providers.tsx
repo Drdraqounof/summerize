@@ -1,7 +1,18 @@
 "use client";
 
 import { ReactNode, createContext, useContext, useState, useEffect } from "react";
+import {
+  clearLegacyLocalSession,
+  getSessionItem,
+  removeSessionItem,
+  setSessionItem,
+} from "@/lib/client-session";
 import { getFocusAreaPromptSummary, type OnboardingAnswers } from "@/lib/onboarding";
+
+interface AuthResult {
+  onboardingAnswers: OnboardingAnswers | null;
+  hasCompletedOnboarding: boolean;
+}
 
 export interface Email {
   id: string;
@@ -51,19 +62,41 @@ interface EmailContextType {
   onboardingAnswers: OnboardingAnswers | null;
   connectionProvider: string | null;
   connectedAccount: ConnectedAccount | null;
-  login: (email: string, password: string) => void;
+  login: (email: string, password: string) => Promise<AuthResult>;
+  register: (email: string, password: string, name?: string) => Promise<AuthResult>;
   logout: () => void;
   markAsRead: (id: string) => void;
   addEmail: (email: Email) => void;
   analyzeEmail: (id: string) => Promise<void>;
   batchAnalyzeEmails: (emails: Email[]) => Promise<void>;
-  saveOnboardingAnswers: (answers: OnboardingAnswers) => void;
+  saveOnboardingAnswers: (answers: OnboardingAnswers) => Promise<void>;
   saveConnectionProvider: (provider: string) => void;
   saveConnectedAccount: (account: ConnectedAccount) => void;
   loadGmailEmails: (email: string) => Promise<void>;
 }
 
 const EmailContext = createContext<EmailContextType | undefined>(undefined);
+
+const sampleEmails: Email[] = [
+  {
+    id: "1",
+    from: "noreply@example.com",
+    subject: "Welcome to Mailturtle",
+    preview: "Thanks for creating your account...",
+    body: "Welcome to Mailturtle. Connect your inbox to start AI-powered triage.",
+    timestamp: new Date(Date.now() - 1000 * 60 * 5),
+    read: false,
+  },
+  {
+    id: "2",
+    from: "notifications@example.com",
+    subject: "Your account is ready",
+    preview: "Your workspace is ready for onboarding.",
+    body: "Your account has been created successfully. Continue to onboarding to set up your AI preferences.",
+    timestamp: new Date(Date.now() - 1000 * 60 * 30),
+    read: false,
+  },
+];
 
 export function EmailProvider({ children }: { children: ReactNode }) {
   const [emails, setEmails] = useState<Email[]>([]);
@@ -75,12 +108,13 @@ export function EmailProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Only run on client after hydration
-    // Load from localStorage
-    const savedUser = localStorage.getItem("emailUser");
-    const savedEmails = localStorage.getItem("emails");
-    const savedAnswers = localStorage.getItem("onboardingAnswers");
-    const savedProvider = localStorage.getItem("emailConnectionProvider");
-    const savedConnectedAccount = localStorage.getItem("connectedAccount");
+    clearLegacyLocalSession();
+
+    const savedUser = getSessionItem("emailUser");
+    const savedEmails = getSessionItem("emails");
+    const savedAnswers = getSessionItem("onboardingAnswers");
+    const savedProvider = getSessionItem("emailConnectionProvider");
+    const savedConnectedAccount = getSessionItem("connectedAccount");
 
     if (savedUser) {
       setUser(savedUser);
@@ -104,38 +138,67 @@ export function EmailProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const login = (email: string, password: string) => {
-    // Simple validation - in production use real auth
-    if (email && password.length >= 6) {
-      setUser(email);
-      setIsLoggedIn(true);
-      localStorage.setItem("emailUser", email);
+  const hydrateSignedInUser = (email: string, answers: OnboardingAnswers | null) => {
+    setUser(email);
+    setIsLoggedIn(true);
+    setSessionItem("emailUser", email);
+    setOnboardingAnswers(answers);
 
-      // Load sample emails
-      const sampleEmails: Email[] = [
-        {
-          id: "1",
-          from: "noreply@example.com",
-          subject: "Welcome to Email Checker!",
-          preview: "Thanks for signing up to our PWA...",
-          body: "Welcome to Email Checker PWA! This is your first email.",
-          timestamp: new Date(Date.now() - 1000 * 60 * 5),
-          read: false,
-        },
-        {
-          id: "2",
-          from: "notifications@example.com",
-          subject: "New notification",
-          preview: "You have a new notification from...",
-          body: "This is a test notification email.",
-          timestamp: new Date(Date.now() - 1000 * 60 * 30),
-          read: false,
-        },
-      ];
-
-      setEmails(sampleEmails);
-      localStorage.setItem("emails", JSON.stringify(sampleEmails));
+    if (answers) {
+      setSessionItem("onboardingAnswers", JSON.stringify(answers));
+    } else {
+      removeSessionItem("onboardingAnswers");
     }
+
+    setEmails(sampleEmails);
+    setSessionItem("emails", JSON.stringify(sampleEmails));
+  };
+
+  const login = async (email: string, password: string) => {
+    const response = await fetch("/api/auth/signin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = (await response.json().catch(() => ({}))) as {
+      error?: string;
+      user?: { email: string };
+      onboardingAnswers?: OnboardingAnswers | null;
+      hasCompletedOnboarding?: boolean;
+    };
+
+    if (!response.ok || !data.user) {
+      throw new Error(data.error || "Unable to sign in.");
+    }
+
+    hydrateSignedInUser(data.user.email, data.onboardingAnswers ?? null);
+
+    return {
+      onboardingAnswers: data.onboardingAnswers ?? null,
+      hasCompletedOnboarding: data.hasCompletedOnboarding ?? false,
+    };
+  };
+
+  const register = async (email: string, password: string, name?: string) => {
+    const response = await fetch("/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, name }),
+    });
+
+    const data = (await response.json().catch(() => ({}))) as { error?: string; user?: { email: string } };
+
+    if (!response.ok || !data.user) {
+      throw new Error(data.error || "Unable to create account.");
+    }
+
+    hydrateSignedInUser(data.user.email, null);
+
+    return {
+      onboardingAnswers: null,
+      hasCompletedOnboarding: false,
+    };
   };
 
   const logout = () => {
@@ -145,11 +208,11 @@ export function EmailProvider({ children }: { children: ReactNode }) {
     setOnboardingAnswers(null);
     setConnectionProvider(null);
     setConnectedAccount(null);
-    localStorage.removeItem("emailUser");
-    localStorage.removeItem("emails");
-    localStorage.removeItem("onboardingAnswers");
-    localStorage.removeItem("emailConnectionProvider");
-    localStorage.removeItem("connectedAccount");
+    removeSessionItem("emailUser");
+    removeSessionItem("emails");
+    removeSessionItem("onboardingAnswers");
+    removeSessionItem("emailConnectionProvider");
+    removeSessionItem("connectedAccount");
   };
 
   const markAsRead = (id: string) => {
@@ -157,30 +220,46 @@ export function EmailProvider({ children }: { children: ReactNode }) {
       e.id === id ? { ...e, read: true } : e
     );
     setEmails(updated);
-    localStorage.setItem("emails", JSON.stringify(updated));
+    setSessionItem("emails", JSON.stringify(updated));
   };
 
   const addEmail = (email: Email) => {
     const updated = [email, ...emails];
     setEmails(updated);
-    localStorage.setItem("emails", JSON.stringify(updated));
+    setSessionItem("emails", JSON.stringify(updated));
   };
 
-  const saveOnboardingAnswers = (answers: OnboardingAnswers) => {
+  const saveOnboardingAnswers = async (answers: OnboardingAnswers) => {
+    if (!user) {
+      throw new Error("Sign in again before saving onboarding answers.");
+    }
+
+    const response = await fetch("/api/onboarding", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: user, answers }),
+    });
+
+    const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+    if (!response.ok) {
+      throw new Error(data.error || "Unable to save onboarding answers.");
+    }
+
     setOnboardingAnswers(answers);
-    localStorage.setItem("onboardingAnswers", JSON.stringify(answers));
+    setSessionItem("onboardingAnswers", JSON.stringify(answers));
   };
 
   const saveConnectionProvider = (provider: string) => {
     setConnectionProvider(provider);
-    localStorage.setItem("emailConnectionProvider", provider);
+    setSessionItem("emailConnectionProvider", provider);
   };
 
   const saveConnectedAccount = (account: ConnectedAccount) => {
     setConnectedAccount(account);
     setConnectionProvider(account.provider);
-    localStorage.setItem("connectedAccount", JSON.stringify(account));
-    localStorage.setItem("emailConnectionProvider", account.provider);
+    setSessionItem("connectedAccount", JSON.stringify(account));
+    setSessionItem("emailConnectionProvider", account.provider);
     
     // Load real emails from Gmail if provider is gmail
     if (account.provider === "gmail") {
@@ -214,7 +293,7 @@ export function EmailProvider({ children }: { children: ReactNode }) {
       }));
 
       setEmails(gmailEmails);
-      localStorage.setItem("emails", JSON.stringify(gmailEmails));
+      setSessionItem("emails", JSON.stringify(gmailEmails));
       console.log("[Providers] Successfully loaded", gmailEmails.length, "emails from Gmail");
     } catch (error) {
       console.error("[Providers] Error loading Gmail emails:", error);
@@ -236,9 +315,10 @@ export function EmailProvider({ children }: { children: ReactNode }) {
           body: email.body,
           scanPreferences: onboardingAnswers
             ? {
-                reason: onboardingAnswers.reason,
+                aiExperience: onboardingAnswers.hasUsedAiBefore,
                 focusAreas: getFocusAreaPromptSummary(onboardingAnswers.selectedFocusAreas),
-                customFocus: onboardingAnswers.customFocus,
+                assistantStyle: onboardingAnswers.assistantStyle,
+                notificationFrequency: onboardingAnswers.notificationFrequency,
               }
             : undefined,
         }),
@@ -259,7 +339,7 @@ export function EmailProvider({ children }: { children: ReactNode }) {
           : e
       );
       setEmails(updated);
-      localStorage.setItem("emails", JSON.stringify(updated));
+      setSessionItem("emails", JSON.stringify(updated));
     } catch (error) {
       console.error("Error analyzing email:", error);
       // Mark as attempted to avoid retry spam
@@ -267,7 +347,7 @@ export function EmailProvider({ children }: { children: ReactNode }) {
         e.id === id ? { ...e, analyzed: true } : e
       );
       setEmails(updated);
-      localStorage.setItem("emails", JSON.stringify(updated));
+      setSessionItem("emails", JSON.stringify(updated));
     }
   };
 
@@ -289,9 +369,10 @@ export function EmailProvider({ children }: { children: ReactNode }) {
           emails: payload,
           scanPreferences: onboardingAnswers
             ? {
-                reason: onboardingAnswers.reason,
+                aiExperience: onboardingAnswers.hasUsedAiBefore,
                 focusAreas: getFocusAreaPromptSummary(onboardingAnswers.selectedFocusAreas),
-                customFocus: onboardingAnswers.customFocus,
+                assistantStyle: onboardingAnswers.assistantStyle,
+                notificationFrequency: onboardingAnswers.notificationFrequency,
               }
             : undefined,
         }),
@@ -322,7 +403,7 @@ export function EmailProvider({ children }: { children: ReactNode }) {
       });
 
       setEmails(updated);
-      localStorage.setItem("emails", JSON.stringify(updated));
+      setSessionItem("emails", JSON.stringify(updated));
     } catch (error) {
       console.error("Error in batch analysis:", error);
       // Mark all as attempted
@@ -332,7 +413,7 @@ export function EmailProvider({ children }: { children: ReactNode }) {
           : e
       );
       setEmails(updated);
-      localStorage.setItem("emails", JSON.stringify(updated));
+      setSessionItem("emails", JSON.stringify(updated));
     }
   };
 
@@ -346,6 +427,7 @@ export function EmailProvider({ children }: { children: ReactNode }) {
         connectionProvider,
         connectedAccount,
         login,
+        register,
         logout,
         markAsRead,
         addEmail,

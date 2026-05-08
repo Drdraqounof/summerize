@@ -9,9 +9,10 @@ const openai = new OpenAI({
 const analysisCache = new Map<string, { category: string; summary: string; shouldNotify: boolean; matchReason: string }>();
 
 interface ScanPreferences {
-  reason?: string;
+  aiExperience?: string;
   focusAreas?: string[];
-  customFocus?: string;
+  assistantStyle?: string;
+  notificationFrequency?: string;
 }
 
 function buildPromptContext(scanPreferences?: ScanPreferences): string {
@@ -20,11 +21,14 @@ function buildPromptContext(scanPreferences?: ScanPreferences): string {
   }
 
   const sections = [
-    scanPreferences.reason ? `User goal: ${scanPreferences.reason}` : "",
+    scanPreferences.aiExperience ? `AI familiarity: ${scanPreferences.aiExperience}` : "",
     scanPreferences.focusAreas?.length
       ? `Priority topics: ${scanPreferences.focusAreas.join("; ")}`
       : "",
-    scanPreferences.customFocus ? `Custom watchlist: ${scanPreferences.customFocus}` : "",
+    scanPreferences.assistantStyle ? `Preferred help style: ${scanPreferences.assistantStyle}` : "",
+    scanPreferences.notificationFrequency
+      ? `Notification cadence: ${scanPreferences.notificationFrequency}`
+      : "",
   ].filter(Boolean);
 
   return sections.length > 0 ? sections.join("\n") : "No user-specific watchlist was provided.";

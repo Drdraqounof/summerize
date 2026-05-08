@@ -1,20 +1,71 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { type Email, useEmail } from "../providers";
 import EmailList from "../components/EmailList";
 import EmailDetail from "../components/EmailDetail";
+import { getSessionItem } from "@/lib/client-session";
 import { getFocusAreaLabels } from "@/lib/onboarding";
+
+const NOTIFICATION_STORAGE_KEY = "mailturtleNotificationState";
+
+const cadenceDurations: Record<string, number> = {
+  hourly: 60 * 60 * 1000,
+  daily: 24 * 60 * 60 * 1000,
+  weekly: 7 * 24 * 60 * 60 * 1000,
+};
+
+interface NotificationState {
+  lastDigestAt?: string;
+  deliveredEmailIds?: string[];
+}
+
+function readNotificationState(): NotificationState {
+  if (typeof window === "undefined") {
+    return {};
+  }
+
+  try {
+    const raw = localStorage.getItem(NOTIFICATION_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as NotificationState) : {};
+  } catch (error) {
+    console.error("Failed to read notification state:", error);
+    return {};
+  }
+}
+
+function saveNotificationState(state: NotificationState) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  localStorage.setItem(NOTIFICATION_STORAGE_KEY, JSON.stringify(state));
+}
+
+function getCadenceLabel(cadence?: string) {
+  if (!cadence) {
+    return "Instant";
+  }
+
+  return cadence.charAt(0).toUpperCase() + cadence.slice(1);
+}
 
 export default function InboxPage() {
   const router = useRouter();
   const { user, logout, emails, connectionProvider, connectedAccount, onboardingAnswers } = useEmail();
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
+  const [digestEmails, setDigestEmails] = useState<Email[]>([]);
+  const [digestReady, setDigestReady] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "unsupported">(
+    "unsupported"
+  );
+  const activeDigestIdsRef = useRef<string[]>([]);
   const focusLabels = getFocusAreaLabels(onboardingAnswers?.selectedFocusAreas ?? []);
-  const hasSavedUser = typeof window !== "undefined" ? localStorage.getItem("emailUser") : null;
-  const hasSavedProvider = typeof window !== "undefined" ? localStorage.getItem("emailConnectionProvider") : null;
+  const hasSavedUser = typeof window !== "undefined" ? getSessionItem("emailUser") : null;
+  const hasSavedProvider = typeof window !== "undefined" ? getSessionItem("emailConnectionProvider") : null;
   const isLoading = !hasSavedUser || !hasSavedProvider;
+  const notificationFrequency = onboardingAnswers?.notificationFrequency ?? "daily";
 
   console.log("📄 PAGE: Inbox page loaded");
   console.log("📄 user from context:", user);
@@ -22,8 +73,8 @@ export default function InboxPage() {
 
   // Check authentication on mount
   useEffect(() => {
-    const savedUser = localStorage.getItem("emailUser");
-    const savedProvider = localStorage.getItem("emailConnectionProvider");
+    const savedUser = getSessionItem("emailUser");
+    const savedProvider = getSessionItem("emailConnectionProvider");
     console.log("📧 Inbox: Checking authentication...");
     console.log("📧 Saved user:", savedUser);
     
@@ -41,6 +92,80 @@ export default function InboxPage() {
     }
   }, [router]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (!("Notification" in window)) {
+      setNotificationPermission("unsupported");
+      return;
+    }
+
+    setNotificationPermission(Notification.permission);
+  }, []);
+
+  useEffect(() => {
+    if (emails.length === 0) {
+      setDigestEmails([]);
+      setDigestReady(false);
+      return;
+    }
+
+    const cadenceDuration = cadenceDurations[notificationFrequency] ?? cadenceDurations.daily;
+    const notificationState = readNotificationState();
+    const deliveredEmailIds = new Set(notificationState.deliveredEmailIds ?? []);
+    const lastDigestAt = notificationState.lastDigestAt
+      ? new Date(notificationState.lastDigestAt).getTime()
+      : 0;
+    const now = Date.now();
+    const flaggedEmails = emails
+      .filter((email) => email.shouldNotify)
+      .sort(
+        (left, right) =>
+          new Date(right.timestamp).getTime() - new Date(left.timestamp).getTime()
+      );
+    const pendingEmails = flaggedEmails.filter((email) => !deliveredEmailIds.has(email.id));
+    const digestDue = lastDigestAt === 0 || now - lastDigestAt >= cadenceDuration;
+
+    if (!digestDue || pendingEmails.length === 0) {
+      const activeEmails = flaggedEmails.filter((email) => activeDigestIdsRef.current.includes(email.id));
+
+      if (activeEmails.length > 0) {
+        setDigestReady(true);
+        setDigestEmails(activeEmails);
+      } else {
+        activeDigestIdsRef.current = [];
+        setDigestReady(false);
+        setDigestEmails([]);
+      }
+
+      return;
+    }
+
+    activeDigestIdsRef.current = pendingEmails.map((email) => email.id);
+    setDigestReady(true);
+    setDigestEmails(pendingEmails);
+
+    const updatedState: NotificationState = {
+      lastDigestAt: new Date(now).toISOString(),
+      deliveredEmailIds: [...deliveredEmailIds, ...pendingEmails.map((email) => email.id)],
+    };
+    saveNotificationState(updatedState);
+
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+      const digestTitle = `${pendingEmails.length} email${pendingEmails.length === 1 ? "" : "s"} matched your watchlist`;
+      const digestBody = pendingEmails
+        .slice(0, 2)
+        .map((email) => email.subject)
+        .join(" | ");
+
+      new Notification(digestTitle, {
+        body: digestBody || `Your ${notificationFrequency} digest is ready in Mailturtle.`,
+      });
+    }
+  }, [emails, notificationFrequency]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
@@ -52,6 +177,15 @@ export default function InboxPage() {
   const handleLogout = () => {
     logout();
     router.replace("/login");
+  };
+
+  const requestNotificationPermission = async () => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      return;
+    }
+
+    const permission = await Notification.requestPermission();
+    setNotificationPermission(permission);
   };
 
   const selectedEmail: Email | undefined = emails.find((e) => e.id === selectedEmailId);
@@ -74,12 +208,22 @@ export default function InboxPage() {
               ) : null}
             </div>
           </div>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg font-medium transition"
-          >
-            Logout
-          </button>
+          <div className="flex items-center gap-3">
+            {notificationPermission === "default" ? (
+              <button
+                onClick={requestNotificationPermission}
+                className="px-4 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg font-medium transition"
+              >
+                Enable browser alerts
+              </button>
+            ) : null}
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg font-medium transition"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
@@ -94,15 +238,41 @@ export default function InboxPage() {
           <div className="p-4 border-b border-gray-200">
             <h2 className="font-bold text-gray-900">Inbox</h2>
             <p className="text-sm text-gray-600">{emails.length} emails</p>
-            {focusLabels.length > 0 || onboardingAnswers?.customFocus ? (
+            {digestReady && digestEmails.length > 0 ? (
+              <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
+                <p className="font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                  {getCadenceLabel(notificationFrequency)} digest ready
+                </p>
+                <p className="mt-1">
+                  {digestEmails.length} email{digestEmails.length === 1 ? "" : "s"} matched your watchlist.
+                </p>
+                <p className="mt-2 line-clamp-3 text-emerald-800">
+                  {digestEmails
+                    .slice(0, 3)
+                    .map((email) => email.subject)
+                    .join(" • ")}
+                </p>
+              </div>
+            ) : null}
+            {focusLabels.length > 0 || onboardingAnswers?.assistantStyle ? (
               <div className="mt-3 rounded-2xl bg-green-50 p-3 text-xs text-green-900">
                 <p className="font-semibold uppercase tracking-[0.18em] text-green-700">AI watchlist</p>
                 <p className="mt-1">
-                  {[
-                    ...focusLabels,
-                    ...(onboardingAnswers?.customFocus ? [onboardingAnswers.customFocus] : []),
-                  ].join(" • ")}
+                  {focusLabels.join(" • ")}
                 </p>
+                {onboardingAnswers?.assistantStyle ? (
+                  <p className="mt-2 text-green-800">AI help style: {onboardingAnswers.assistantStyle}</p>
+                ) : null}
+                {onboardingAnswers?.notificationFrequency ? (
+                  <p className="mt-2 text-green-800">
+                    Notifications: {onboardingAnswers.notificationFrequency}
+                  </p>
+                ) : null}
+                {notificationPermission === "denied" ? (
+                  <p className="mt-2 text-green-800">
+                    Browser alerts are blocked, so digests stay inside the inbox.
+                  </p>
+                ) : null}
               </div>
             ) : null}
           </div>

@@ -6,7 +6,9 @@ import { useEmail } from "../providers";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useEmail();
+  const { login, register } = useEmail();
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -16,12 +18,7 @@ export default function LoginPage() {
     console.log("LOGIN PAGE LOADED - Component mounted");
   }, []);
 
-  const handleSignIn = () => {
-    console.log("===== BUTTON CLICKED =====");
-    console.log("Email field value:", email);
-    console.log("Password field value:", password);
-    console.log("Loading state:", loading);
-
+  const handleAuth = async () => {
     setError("");
 
     if (!email || !password) {
@@ -34,9 +31,32 @@ export default function LoginPage() {
       return;
     }
 
+    if (mode === "signup" && !name.trim()) {
+      setError("Please enter your name");
+      return;
+    }
+
     setLoading(true);
-    login(email, password);
-    router.replace("/questions");
+
+    try {
+      if (mode === "signup") {
+        await register(email, password, name.trim());
+        router.replace("/questions");
+      } else {
+        const result = await login(email, password);
+
+        if (result.hasCompletedOnboarding && result.onboardingAnswers) {
+          router.replace("/connect");
+          return;
+        }
+
+        router.replace("/questions");
+      }
+    } catch (authError) {
+      setError(authError instanceof Error ? authError.message : "Authentication failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -52,21 +72,21 @@ export default function LoginPage() {
             Connect your inbox to smarter triage and summaries.
           </h1>
           <p className="mt-4 max-w-xl text-base leading-7 text-green-50/85">
-            Sign in first, answer two short onboarding questions, then choose which mailbox provider you want to connect.
+            Sign in first, answer four quick setup questions, and returning users go straight into Google inbox connection.
           </p>
           <div className="mt-10 grid gap-4 sm:grid-cols-2">
             <div className="rounded-[1.5rem] border border-white/15 bg-white/10 p-5 backdrop-blur">
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-green-50/80">Step 1</p>
               <p className="mt-2 text-lg font-semibold">Quick onboarding</p>
               <p className="mt-2 text-sm text-green-50/80">
-                Tell us why you are here and how familiar you are with tools like this.
+                Tell us if you have used AI before, which emails matter, and how you want help.
               </p>
             </div>
             <div className="rounded-[1.5rem] border border-white/15 bg-white/10 p-5 backdrop-blur">
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-green-50/80">Step 2</p>
-              <p className="mt-2 text-lg font-semibold">Choose your provider</p>
+              <p className="mt-2 text-lg font-semibold">Connect Gmail</p>
               <p className="mt-2 text-sm text-green-50/80">
-                Use Google OAuth for Gmail now, or select another provider for the next phase.
+                Google OAuth starts right away once your setup is complete.
               </p>
             </div>
           </div>
@@ -77,11 +97,60 @@ export default function LoginPage() {
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-green-100 text-3xl text-green-700 shadow-inner shadow-green-200">
               M
             </div>
-            <h2 className="text-3xl font-bold text-slate-900">Welcome back</h2>
-            <p className="mt-2 text-slate-600">Sign in to start your mailturtle onboarding flow.</p>
+            <h2 className="text-3xl font-bold text-slate-900">
+              {mode === "signin" ? "Welcome back" : "Create your account"}
+            </h2>
+            <p className="mt-2 text-slate-600">
+              {mode === "signin"
+                ? "Sign in to start your mailturtle onboarding flow."
+                : "Create an account and save your login in the database."}
+            </p>
+          </div>
+
+          <div className="mb-6 grid grid-cols-2 rounded-full bg-green-100 p-1 text-sm font-semibold text-green-900">
+            <button
+              type="button"
+              onClick={() => {
+                setMode("signin");
+                setError("");
+              }}
+              className={`rounded-full px-4 py-2 transition ${
+                mode === "signin" ? "bg-white shadow text-slate-900" : "text-green-800"
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode("signup");
+                setError("");
+              }}
+              className={`rounded-full px-4 py-2 transition ${
+                mode === "signup" ? "bg-white shadow text-slate-900" : "text-green-800"
+              }`}
+            >
+              Create Account
+            </button>
           </div>
 
           <div className="space-y-5">
+            {mode === "signup" ? (
+              <div>
+                <label htmlFor="name" className="mb-1 block text-sm font-medium text-slate-700">
+                  Full Name
+                </label>
+                <input
+                  id="name"
+                  type="text"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Jane Doe"
+                  className="w-full rounded-2xl border border-green-200 bg-green-50/50 px-4 py-3 text-slate-900 outline-none transition focus:border-green-500 focus:bg-white focus:ring-4 focus:ring-green-100"
+                />
+              </div>
+            ) : null}
+
             <div>
               <label htmlFor="email" className="mb-1 block text-sm font-medium text-slate-700">
                 Email Address
@@ -114,22 +183,16 @@ export default function LoginPage() {
 
             <button
               type="button"
-              onClick={handleSignIn}
+              onClick={handleAuth}
               disabled={loading}
               className="w-full rounded-full bg-gradient-to-r from-green-600 to-emerald-600 px-4 py-3 font-semibold text-white transition hover:from-green-700 hover:to-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {loading ? "Signing in..." : "Sign In"}
+              {loading ? (mode === "signin" ? "Signing in..." : "Creating account...") : mode === "signin" ? "Sign In" : "Create Account"}
             </button>
           </div>
 
-          <div className="mt-6 rounded-[1.5rem] border border-green-200 bg-green-50 p-4 text-sm text-slate-700">
-            <p className="mb-2 font-semibold">Demo Credentials</p>
-            <p>Email: demo@example.com</p>
-            <p>Password: demo123</p>
-          </div>
-
           <p className="mt-6 text-center text-sm text-slate-600">
-            Built for fast onboarding, guided connection, and AI inbox triage.
+            Built for real account creation, guided onboarding, and AI inbox triage.
           </p>
         </div>
       </div>

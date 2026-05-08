@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { storeToken } from "@/lib/tokenStore";
+import { getAppUrl, getGoogleCallbackUrl } from "@/lib/app-url";
 
 // Google's OAuth token exchange endpoint
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
   const storedState = request.cookies.get("google_oauth_state")?.value;
 
   // Log the redirect URI being used (for debugging)
-  const redirectUri = `${request.nextUrl.origin}/api/google/callback`;
+  const redirectUri = getGoogleCallbackUrl(request.url);
   console.log("[Google Callback] Received request with redirect_uri:", redirectUri);
   console.log("[Google Callback] Parameters - state:", state, "code:", code?.substring(0, 10) + "...", "error:", error);
 
@@ -116,7 +117,7 @@ export async function GET(request: NextRequest) {
     console.log("[Google Callback] Stored access token for:", userInfo.email);
   }
 
-  const redirect = new URL("/connect", request.url);
+  const redirect = new URL("/connect", getAppUrl(request.url));
   redirect.searchParams.set("google", "connected");
   redirect.searchParams.set("provider", "gmail");
 

@@ -5,6 +5,7 @@ import { useEmail } from "./providers";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { motion } from "framer-motion";
+import { getSessionItem } from "@/lib/client-session";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
@@ -19,15 +20,15 @@ export default function Home() {
   const router = useRouter();
   const { isLoggedIn } = useEmail();
 
-  // Redirect to inbox if already logged in + debug logs
+  // Keep the landing page available for logged-out users and only resume the inbox for an active session.
   useEffect(() => {
     console.log("📄 PAGE: Home page loaded");
     console.log("📄 isLoggedIn:", isLoggedIn);
-    console.log("📄 localStorage emailUser:", localStorage.getItem("emailUser"));
+    console.log("📄 sessionStorage emailUser:", getSessionItem("emailUser"));
 
-    if (isLoggedIn || localStorage.getItem("emailUser")) {
+    if (isLoggedIn || getSessionItem("emailUser")) {
       console.log("✅ User already logged in, redirecting to /inbox from home page");
-      router.push("/inbox");
+      router.replace("/inbox");
     }
   }, [isLoggedIn, router]);
 

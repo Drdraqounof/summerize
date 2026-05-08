@@ -16,6 +16,7 @@ model User {
   id                String                   @id @default(cuid())
   email             String                   @unique
   name              String?
+  passwordHash      String?
   googleId          String?                  @unique
   googleAccessToken String?
   picture           String?
@@ -34,14 +35,19 @@ model User {
 }
 
 model UserPreference {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  autoAnalyze Boolean  @default(true)
-  theme       String   @default("light")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                    String    @id @default(cuid())
+  userId                String    @unique
+  autoAnalyze           Boolean   @default(true)
+  theme                 String    @default("light")
+  onboardingCompleted   Boolean   @default(false)
+  hasUsedAiBefore       String?
+  focusAreas            String[]  @default([])
+  assistantStyle        String?
+  notificationFrequency String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }

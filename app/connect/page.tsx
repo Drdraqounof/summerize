@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEmail } from "../providers";
+import { getSessionItem } from "@/lib/client-session";
 
 const providerOptions = [
   {
@@ -50,14 +51,14 @@ function ConnectPageContent() {
       : "";
 
   useEffect(() => {
-    const savedUser = localStorage.getItem("emailUser");
+    const savedUser = getSessionItem("emailUser");
 
     if (!isLoggedIn && !savedUser) {
       router.replace("/login");
       return;
     }
 
-    if (!onboardingAnswers && !localStorage.getItem("onboardingAnswers")) {
+    if (!onboardingAnswers && !getSessionItem("onboardingAnswers")) {
       router.replace("/questions");
     }
   }, [isLoggedIn, onboardingAnswers, router]);
@@ -95,7 +96,7 @@ function ConnectPageContent() {
         <div className="mb-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="mb-3 inline-flex rounded-full bg-green-100 px-4 py-1 text-sm font-semibold text-green-800">
-              Step 2 of 2
+              Step 3 of 3
             </p>
             <h1 className="text-4xl font-bold text-slate-900">Choose which email account to connect</h1>
             <p className="mt-3 max-w-2xl text-base text-slate-700">
@@ -165,6 +166,22 @@ function ConnectPageContent() {
             >
               {selectedProvider === "gmail" ? "Connect with Google" : "Save Provider"}
             </button>
+            {/* Dev helper: allow manually setting a connected email for testing when OAuth is restricted */}
+            {process.env.NODE_ENV !== "production" ? (
+              <button
+                type="button"
+                onClick={() => {
+                  const testEmail = window.prompt("Enter test email to simulate Google connection (dev only):");
+                  if (testEmail) {
+                    saveConnectedAccount({ provider: "gmail", email: testEmail, name: undefined });
+                    router.replace('/connect');
+                  }
+                }}
+                className="inline-flex items-center justify-center rounded-full border border-dashed border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Use Test Email
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={handleContinue}
