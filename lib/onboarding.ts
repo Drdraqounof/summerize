@@ -21,6 +21,15 @@ export interface FocusAreaOption {
   signals: string[];
 }
 
+interface FilterableEmail {
+  body?: string;
+  category?: string;
+  matchReason?: string;
+  preview?: string;
+  subject?: string;
+  shouldNotify?: boolean;
+}
+
 export const focusAreaOptions: FocusAreaOption[] = [
   {
     id: "groceries",
@@ -78,12 +87,39 @@ export function getFocusAreaLabels(selectedFocusAreas: string[]): string[] {
     .filter((label): label is string => Boolean(label));
 }
 
-export function getFocusAreaPromptSummary(selectedFocusAreas: string[]): string[] {
+export function getFocusAreaOptionsById(selectedFocusAreas: string[]): FocusAreaOption[] {
   return selectedFocusAreas
     .map((focusId) => focusAreaOptions.find((option) => option.id === focusId))
-    .filter((option): option is FocusAreaOption => Boolean(option))
+    .filter((option): option is FocusAreaOption => Boolean(option));
+}
+
+export function getFocusAreaPromptSummary(selectedFocusAreas: string[]): string[] {
+  return getFocusAreaOptionsById(selectedFocusAreas)
     .map(
       (option) =>
         `${option.label}: look for ${option.signals.join(", ")}`,
     );
+}
+
+export function matchesFocusArea(email: FilterableEmail, option: FocusAreaOption): boolean {
+  const searchableFields = [
+    email.subject,
+    email.preview,
+    email.body,
+    email.category,
+    email.matchReason,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  if (!searchableFields) {
+    return false;
+  }
+
+  if (email.shouldNotify && searchableFields.includes(option.label.toLowerCase())) {
+    return true;
+  }
+
+  return option.signals.some((signal) => searchableFields.includes(signal.toLowerCase()));
 }
