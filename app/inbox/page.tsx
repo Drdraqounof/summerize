@@ -5,8 +5,13 @@ import { useRouter } from "next/navigation";
 import { type Email, useEmail } from "../providers";
 import EmailList from "../components/EmailList";
 import EmailDetail from "../components/EmailDetail";
+import InboxFilterBar, { type InboxFilterValue } from "../components/InboxFilterBar";
 import { getSessionItem } from "@/lib/client-session";
-import { getFocusAreaLabels } from "@/lib/onboarding";
+import {
+  getFocusAreaLabels,
+  getFocusAreaOptionsById,
+  matchesFocusArea,
+} from "@/lib/onboarding";
 
 const NOTIFICATION_STORAGE_KEY = "mailturtleNotificationState";
 
@@ -19,6 +24,24 @@ const cadenceDurations: Record<string, number> = {
 interface NotificationState {
   lastDigestAt?: string;
   deliveredEmailIds?: string[];
+}
+
+interface SessionSnapshot {
+  savedProvider: string | null;
+  savedUser: string | null;
+}
+
+function logInboxHydrationIssue(
+  message: string,
+  details: {
+    connectedAccountEmail?: string | null;
+    connectionProvider?: string | null;
+    savedProvider?: string | null;
+    savedUser?: string | null;
+    user?: string | null;
+  },
+) {
+  console.warn("[Inbox hydration] " + message, details);
 }
 
 function readNotificationState(): NotificationState {
@@ -51,28 +74,73 @@ function getCadenceLabel(cadence?: string) {
   return cadence.charAt(0).toUpperCase() + cadence.slice(1);
 }
 
+function getDefaultInboxFilter(
+  assistantStyle: string | undefined,
+  selectedFocusAreas: string[],
+): InboxFilterValue {
+  if (assistantStyle === "priority-only") {
+    return "matches";
+  }
+
+  if (selectedFocusAreas.length > 0) {
+    return selectedFocusAreas[0];
+  }
+
+  return "all";
+}
+
 export default function InboxPage() {
   const router = useRouter();
   const { user, logout, emails, connectionProvider, connectedAccount, onboardingAnswers } = useEmail();
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [digestEmails, setDigestEmails] = useState<Email[]>([]);
   const [digestReady, setDigestReady] = useState(false);
+  const [sessionSnapshot, setSessionSnapshot] = useState<SessionSnapshot>({
+    savedProvider: null,
+    savedUser: null,
+  });
+  const [hasHydrated, setHasHydrated] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<InboxFilterValue>("all");
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "unsupported">(
     "unsupported"
   );
   const activeDigestIdsRef = useRef<string[]>([]);
-  const focusLabels = getFocusAreaLabels(onboardingAnswers?.selectedFocusAreas ?? []);
-  const hasSavedUser = typeof window !== "undefined" ? getSessionItem("emailUser") : null;
-  const hasSavedProvider = typeof window !== "undefined" ? getSessionItem("emailConnectionProvider") : null;
-  const isLoading = !hasSavedUser || !hasSavedProvider;
+  const selectedFocusAreas = onboardingAnswers?.selectedFocusAreas ?? [];
+  const focusLabels = getFocusAreaLabels(selectedFocusAreas);
+  const selectedFocusOptions = getFocusAreaOptionsById(selectedFocusAreas);
+  const isLoading = !hasHydrated || !sessionSnapshot.savedUser || !sessionSnapshot.savedProvider;
   const notificationFrequency = onboardingAnswers?.notificationFrequency ?? "daily";
 
   console.log("📄 PAGE: Inbox page loaded");
   console.log("📄 user from context:", user);
   console.log("📄 emails:", emails);
 
-  // Check authentication on mount
   useEffect(() => {
+    const snapshot = {
+      savedProvider: getSessionItem("emailConnectionProvider"),
+      savedUser: getSessionItem("emailUser"),
+    };
+
+    setSessionSnapshot(snapshot);
+    setHasHydrated(true);
+
+    console.info("[Inbox hydration] Client session snapshot captured", {
+      hasConnectedAccount: Boolean(connectedAccount?.email),
+      savedProvider: snapshot.savedProvider,
+      savedUser: snapshot.savedUser,
+    });
+
+    if (!snapshot.savedUser || !snapshot.savedProvider) {
+      logInboxHydrationIssue("Missing session data after hydration", {
+        connectedAccountEmail: connectedAccount?.email ?? null,
+        connectionProvider,
+        savedProvider: snapshot.savedProvider,
+        savedUser: snapshot.savedUser,
+        user,
+      });
+    }
+
+    // Check authentication on mount
     const savedUser = getSessionItem("emailUser");
     const savedProvider = getSessionItem("emailConnectionProvider");
     console.log("📧 Inbox: Checking authentication...");
@@ -90,7 +158,68 @@ export default function InboxPage() {
       console.log("✅ User authenticated:", savedUser);
       console.log("✅ INBOX PAGE SUCCESSFULLY DETECTED - User can now see emails");
     }
-  }, [router]);
+  }, [connectedAccount?.email, connectionProvider, router, user]);
+
+  useEffect(() => {
+    if (!hasHydrated) {
+      return;
+    }
+
+    if (sessionSnapshot.savedUser && user && sessionSnapshot.savedUser !== user) {
+      logInboxHydrationIssue("Session user does not match provider user", {
+        connectedAccountEmail: connectedAccount?.email ?? null,
+        connectionProvider,
+        savedProvider: sessionSnapshot.savedProvider,
+        savedUser: sessionSnapshot.savedUser,
+        user,
+      });
+    }
+
+    if (
+      sessionSnapshot.savedProvider
+      && connectionProvider
+      && sessionSnapshot.savedProvider !== connectionProvider
+    ) {
+      logInboxHydrationIssue("Session provider does not match provider state", {
+        connectedAccountEmail: connectedAccount?.email ?? null,
+        connectionProvider,
+        savedProvider: sessionSnapshot.savedProvider,
+        savedUser: sessionSnapshot.savedUser,
+        user,
+      });
+    }
+  }, [
+    connectedAccount?.email,
+    connectionProvider,
+    hasHydrated,
+    sessionSnapshot.savedProvider,
+    sessionSnapshot.savedUser,
+    user,
+  ]);
+
+  useEffect(() => {
+    if (!hasHydrated) {
+      return;
+    }
+
+    if (selectedFocusAreas.length === 0) {
+      console.info("[Inbox filter] No saved focus areas found, defaulting to all emails");
+    }
+
+    setActiveFilter((currentFilter) => {
+      const availableFilters = new Set<InboxFilterValue>([
+        "all",
+        "matches",
+        ...selectedFocusAreas,
+      ]);
+
+      if (availableFilters.has(currentFilter)) {
+        return currentFilter;
+      }
+
+      return getDefaultInboxFilter(onboardingAnswers?.assistantStyle, selectedFocusAreas);
+    });
+  }, [hasHydrated, onboardingAnswers?.assistantStyle, selectedFocusAreas]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -166,6 +295,40 @@ export default function InboxPage() {
     }
   }, [emails, notificationFrequency]);
 
+  const visibleEmails = emails.filter((email) => {
+    if (activeFilter === "all") {
+      return true;
+    }
+
+    if (activeFilter === "matches") {
+      return Boolean(email.shouldNotify);
+    }
+
+    const focusOption = selectedFocusOptions.find((option) => option.id === activeFilter);
+    if (!focusOption) {
+      return true;
+    }
+
+    return matchesFocusArea(email, focusOption);
+  });
+
+  useEffect(() => {
+    if (activeFilter !== "all" && visibleEmails.length === 0) {
+      console.info("[Inbox filter] Active filter returned no emails", {
+        activeFilter,
+        totalEmails: emails.length,
+      });
+    }
+  }, [activeFilter, emails.length, visibleEmails.length]);
+
+  useEffect(() => {
+    if (selectedEmailId && !visibleEmails.some((email) => email.id === selectedEmailId)) {
+      setSelectedEmailId(visibleEmails[0]?.id ?? null);
+    }
+  }, [selectedEmailId, visibleEmails]);
+
+  const selectedEmail: Email | undefined = visibleEmails.find((e) => e.id === selectedEmailId);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
@@ -187,8 +350,6 @@ export default function InboxPage() {
     const permission = await Notification.requestPermission();
     setNotificationPermission(permission);
   };
-
-  const selectedEmail: Email | undefined = emails.find((e) => e.id === selectedEmailId);
 
   return (
     <div className="flex-1 flex flex-col h-screen bg-gray-50">
@@ -237,7 +398,16 @@ export default function InboxPage() {
         >
           <div className="p-4 border-b border-gray-200">
             <h2 className="font-bold text-gray-900">Inbox</h2>
-            <p className="text-sm text-gray-600">{emails.length} emails</p>
+            <p className="text-sm text-gray-600">
+              {activeFilter === "all" ? emails.length : visibleEmails.length} emails
+            </p>
+            <InboxFilterBar
+              activeFilter={activeFilter}
+              availableFocusAreas={selectedFocusOptions}
+              onChange={setActiveFilter}
+              totalCount={emails.length}
+              visibleCount={visibleEmails.length}
+            />
             {digestReady && digestEmails.length > 0 ? (
               <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
                 <p className="font-semibold uppercase tracking-[0.18em] text-emerald-700">
@@ -277,7 +447,9 @@ export default function InboxPage() {
             ) : null}
           </div>
           <EmailList
-            emails={emails}
+            emails={visibleEmails}
+            emailsToAnalyze={emails}
+            emptyMessage={emails.length > 0 ? "No emails match the current filter" : "No emails yet"}
             onSelectEmail={setSelectedEmailId}
             selectedId={selectedEmailId}
           />

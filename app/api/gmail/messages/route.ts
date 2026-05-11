@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
           headers.find((header) => header.name === name)?.value || "";
 
         const subject = getHeader("Subject") || "(No Subject)";
-        const from = getHeader("From") || "Unknown";
+        const from = formatSender(getHeader("From"));
         const extractedContent = extractEmailContent({
           accountEmail: email,
           messageId: msg.id,
@@ -246,6 +246,28 @@ function decodeBody(data?: string): string {
 
 function getHeaderValue(headers: GmailHeader[] = [], name: string): string {
   return headers.find((header) => header.name.toLowerCase() === name.toLowerCase())?.value || "";
+}
+
+function formatSender(fromHeader: string): string {
+  const normalized = fromHeader.replace(/\s+/g, " ").trim();
+
+  if (!normalized) {
+    return "Unknown";
+  }
+
+  const senderMatch = normalized.match(/^(?:"?([^"<]+?)"?\s*)?<([^>]+)>$/);
+  if (!senderMatch) {
+    return normalized.replace(/^<|>$/g, "").replace(/^"+|"+$/g, "").trim();
+  }
+
+  const displayName = senderMatch[1]?.trim().replace(/^"+|"+$/g, "");
+  const email = senderMatch[2]?.trim();
+
+  if (displayName && displayName.toLowerCase() !== email.toLowerCase()) {
+    return displayName;
+  }
+
+  return email;
 }
 
 function stripHtml(value: string): string {

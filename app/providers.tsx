@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, createContext, useContext, useState, useEffect } from "react";
+import { ReactNode, createContext, useCallback, useContext, useEffect, useState } from "react";
 import {
   clearLegacyLocalSession,
   getSessionItem,
@@ -250,22 +250,32 @@ export function EmailProvider({ children }: { children: ReactNode }) {
     setSessionItem("onboardingAnswers", JSON.stringify(answers));
   };
 
-  const saveConnectionProvider = (provider: string) => {
+  const saveConnectionProvider = useCallback((provider: string) => {
     setConnectionProvider(provider);
     setSessionItem("emailConnectionProvider", provider);
-  };
+  }, []);
 
-  const saveConnectedAccount = (account: ConnectedAccount) => {
-    setConnectedAccount(account);
+  const saveConnectedAccount = useCallback((account: ConnectedAccount) => {
+    setConnectedAccount((currentAccount) => {
+      if (
+        currentAccount?.provider === account.provider
+        && currentAccount.email === account.email
+        && currentAccount.name === account.name
+      ) {
+        return currentAccount;
+      }
+
+      return account;
+    });
     setConnectionProvider(account.provider);
     setSessionItem("connectedAccount", JSON.stringify(account));
     setSessionItem("emailConnectionProvider", account.provider);
     
     // Load real emails from Gmail if provider is gmail
     if (account.provider === "gmail") {
-      loadGmailEmails(account.email);
+      void loadGmailEmails(account.email);
     }
-  };
+  }, []);
 
   const loadGmailEmails = async (email: string) => {
     try {

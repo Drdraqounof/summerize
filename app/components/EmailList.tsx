@@ -5,6 +5,8 @@ import { useEffect, useRef } from "react";
 
 interface EmailListProps {
   emails: Email[];
+  emailsToAnalyze?: Email[];
+  emptyMessage?: string;
   onSelectEmail: (id: string) => void;
   selectedId: string | null;
 }
@@ -19,6 +21,8 @@ const categoryColors: { [key: string]: string } = {
 
 export default function EmailList({
   emails,
+  emailsToAnalyze = emails,
+  emptyMessage = "No emails yet",
   onSelectEmail,
   selectedId,
 }: EmailListProps) {
@@ -27,9 +31,9 @@ export default function EmailList({
 
   // Batch analyze all unanalyzed emails in one request
   useEffect(() => {
-    if (batchedRef.current || emails.length === 0) return;
+    if (batchedRef.current || emailsToAnalyze.length === 0) return;
 
-    const unanalyzedEmails = emails.filter((e) => !e.analyzed);
+    const unanalyzedEmails = emailsToAnalyze.filter((e) => !e.analyzed);
     if (unanalyzedEmails.length === 0) {
       batchedRef.current = true;
       return;
@@ -39,12 +43,12 @@ export default function EmailList({
     batchAnalyzeEmails(unanalyzedEmails).catch((error) => {
       console.error("Batch analysis failed:", error);
     });
-  }, [batchAnalyzeEmails, emails]);
+  }, [batchAnalyzeEmails, emailsToAnalyze]);
 
   if (emails.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center text-gray-500 p-4">
-        <p className="text-center">No emails yet</p>
+        <p className="text-center">{emptyMessage}</p>
       </div>
     );
   }
