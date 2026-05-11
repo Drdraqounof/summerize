@@ -4,6 +4,7 @@ import { type Email, useEmail } from "../providers";
 import { useEffect } from "react";
 
 interface EmailDetailProps {
+  assistantStyle?: string;
   email: Email;
 }
 
@@ -15,8 +16,10 @@ const categoryColors: { [key: string]: string } = {
   Other: "bg-gray-50 border-gray-200 text-gray-900",
 };
 
-export default function EmailDetail({ email }: EmailDetailProps) {
+export default function EmailDetail({ assistantStyle, email }: EmailDetailProps) {
   const { markAsRead } = useEmail();
+  const showSummaryFirst = assistantStyle === "smart-summaries";
+  const showActionReasonFirst = assistantStyle === "action-items";
 
   useEffect(() => {
     if (!email.read) {
@@ -32,7 +35,11 @@ export default function EmailDetail({ email }: EmailDetailProps) {
         {email.shouldNotify ? (
           <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
             <p className="font-semibold">Flagged for your watchlist</p>
-            <p className="mt-1">{email.matchReason || "This email matches one of your chosen topics."}</p>
+            <p className="mt-1">
+              {showActionReasonFirst
+                ? email.matchReason || "This email matches one of your chosen topics."
+                : email.matchReason || "This email matches one of your chosen topics."}
+            </p>
           </div>
         ) : null}
 
@@ -60,14 +67,24 @@ export default function EmailDetail({ email }: EmailDetailProps) {
               <span className="text-lg">✨</span>
               <div className="flex-1">
                 <p className="font-semibold text-sm mb-1">AI Analysis</p>
+                {showSummaryFirst && email.summary ? (
+                  <p className="text-sm mb-2">
+                    <strong>Summary:</strong> {email.summary}
+                  </p>
+                ) : null}
                 <p className="text-sm mb-2">
                   <strong>Category:</strong> {email.category}
                 </p>
-                {email.summary && (
+                {!showSummaryFirst && email.summary && (
                   <p className="text-sm">
                     <strong>Summary:</strong> {email.summary}
                   </p>
                 )}
+                {showActionReasonFirst && email.matchReason ? (
+                  <p className="mt-2 text-sm">
+                    <strong>Why it matters:</strong> {email.matchReason}
+                  </p>
+                ) : null}
               </div>
             </div>
           </div>

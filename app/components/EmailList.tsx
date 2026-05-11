@@ -4,6 +4,7 @@ import { type Email, useEmail } from "../providers";
 import { useEffect, useRef } from "react";
 
 interface EmailListProps {
+  assistantStyle?: string;
   emails: Email[];
   emailsToAnalyze?: Email[];
   emptyMessage?: string;
@@ -20,6 +21,7 @@ const categoryColors: { [key: string]: string } = {
 };
 
 export default function EmailList({
+  assistantStyle,
   emails,
   emailsToAnalyze = emails,
   emptyMessage = "No emails yet",
@@ -28,6 +30,9 @@ export default function EmailList({
 }: EmailListProps) {
   const { batchAnalyzeEmails } = useEmail();
   const batchedRef = useRef(false);
+  const showSummaryFirst = assistantStyle === "smart-summaries";
+  const showActionReasonFirst = assistantStyle === "action-items";
+  const compactPriorityView = assistantStyle === "priority-only";
 
   // Batch analyze all unanalyzed emails in one request
   useEffect(() => {
@@ -92,8 +97,19 @@ export default function EmailList({
                 )}
               </div>
               <p className="text-sm text-gray-700 truncate">{email.subject}</p>
-              <p className="text-xs text-gray-500 truncate">{email.preview}</p>
-              {email.shouldNotify && email.matchReason ? (
+              {showSummaryFirst && email.summary ? (
+                <p className="mt-1 text-xs text-blue-700 truncate">Summary: {email.summary}</p>
+              ) : null}
+              {showActionReasonFirst && email.shouldNotify && email.matchReason ? (
+                <p className="mt-1 text-xs text-emerald-700 truncate">Action cue: {email.matchReason}</p>
+              ) : null}
+              {!compactPriorityView ? (
+                <p className="text-xs text-gray-500 truncate">{email.preview}</p>
+              ) : null}
+              {!showSummaryFirst && email.summary ? (
+                <p className="mt-1 text-xs text-blue-700 truncate">Summary: {email.summary}</p>
+              ) : null}
+              {!showActionReasonFirst && email.shouldNotify && email.matchReason ? (
                 <p className="text-xs text-emerald-700 truncate mt-1">{email.matchReason}</p>
               ) : null}
               <p className="text-xs text-gray-400 mt-1">

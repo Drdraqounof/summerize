@@ -14,6 +14,7 @@ import {
 } from "@/lib/onboarding";
 
 const NOTIFICATION_STORAGE_KEY = "mailturtleNotificationState";
+const INBOX_FILTER_STORAGE_KEY = "mailturtleInboxFilter";
 
 const cadenceDurations: Record<string, number> = {
   hourly: 60 * 60 * 1000,
@@ -72,6 +73,31 @@ function getCadenceLabel(cadence?: string) {
   }
 
   return cadence.charAt(0).toUpperCase() + cadence.slice(1);
+}
+
+function readStoredInboxFilter(): InboxFilterValue | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    return window.sessionStorage.getItem(INBOX_FILTER_STORAGE_KEY);
+  } catch (error) {
+    console.warn("[Inbox filter] Failed to read stored inbox filter", error);
+    return null;
+  }
+}
+
+function saveStoredInboxFilter(value: InboxFilterValue) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.sessionStorage.setItem(INBOX_FILTER_STORAGE_KEY, value);
+  } catch (error) {
+    console.warn("[Inbox filter] Failed to save inbox filter", error);
+  }
 }
 
 function getDefaultInboxFilter(
@@ -212,14 +238,27 @@ export default function InboxPage() {
         "matches",
         ...selectedFocusAreas,
       ]);
+      const storedFilter = readStoredInboxFilter();
 
       if (availableFilters.has(currentFilter)) {
         return currentFilter;
       }
 
+      if (storedFilter && availableFilters.has(storedFilter)) {
+        return storedFilter;
+      }
+
       return getDefaultInboxFilter(onboardingAnswers?.assistantStyle, selectedFocusAreas);
     });
   }, [hasHydrated, onboardingAnswers?.assistantStyle, selectedFocusAreas]);
+
+  useEffect(() => {
+    if (!hasHydrated) {
+      return;
+    }
+
+    saveStoredInboxFilter(activeFilter);
+  }, [activeFilter, hasHydrated]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -447,6 +486,7 @@ export default function InboxPage() {
             ) : null}
           </div>
           <EmailList
+            assistantStyle={onboardingAnswers?.assistantStyle}
             emails={visibleEmails}
             emailsToAnalyze={emails}
             emptyMessage={emails.length > 0 ? "No emails match the current filter" : "No emails yet"}
@@ -466,7 +506,7 @@ export default function InboxPage() {
                 ← Back to Inbox
               </button>
             </div>
-            <EmailDetail email={selectedEmail} />
+            <EmailDetail assistantStyle={onboardingAnswers?.assistantStyle} email={selectedEmail} />
           </div>
         ) : (
           <div className="hidden md:flex flex-1 items-center justify-center bg-gray-50">
