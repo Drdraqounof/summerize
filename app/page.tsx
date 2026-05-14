@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEmail } from "./providers";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -123,7 +124,7 @@ export default function Home() {
           >
             <Image
               src="/MailTurtleLogo.png"
-              alt="mailturtle logo"
+              alt="Summerize logo"
               fill
               sizes="150px"
               className="object-contain"
@@ -134,7 +135,7 @@ export default function Home() {
             variants={fadeUp}
             transition={{ duration: 0.6 }}
           >
-            MailTurtle
+            Summerize
           </motion.h1>
           <motion.h2
             className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4"
@@ -217,7 +218,7 @@ export default function Home() {
             <div>
               <h2 className="text-3xl font-bold text-slate-900 mb-6">Secure Google Integration</h2>
               <p className="text-slate-700 mb-4">
-                mailturtle integrates securely with Google using OAuth 2.0 authentication. This means:
+                Summerize integrates securely with Google using OAuth 2.0 authentication. This means:
               </p>
               <ul className="space-y-3 text-slate-700">
                 <li className="flex items-start">
@@ -383,6 +384,18 @@ export default function Home() {
             Start For Free
           </motion.a>
         </motion.div>
+
+        <div className="mt-16 border-t border-green-200 pt-8 text-center text-sm text-slate-700">
+          <p className="mb-3">Summerize</p>
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <Link href="/privacy" className="font-medium text-emerald-700 hover:text-emerald-800">
+              Privacy Policy
+            </Link>
+            <Link href="/terms" className="font-medium text-emerald-700 hover:text-emerald-800">
+              Terms of Service
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );
