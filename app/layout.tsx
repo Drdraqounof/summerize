@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Summerize",
-  description: "Summerize helps you organize, summarize, and review email faster.",
+  title: "MailTurtle",
+  description: "MailTurtle helps you organize, summarize, and review email faster.",
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.ico",
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Summerize",
+    title: "MailTurtle",
   },
   formatDetection: {
     telephone: false,

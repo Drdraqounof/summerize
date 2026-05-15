@@ -2,18 +2,18 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Terms of Service | Summerize",
-  description: "Terms of service for Summerize and its email productivity platform.",
+  title: "Terms of Service | MailTurtle",
+  description: "Terms of service for MailTurtle and its email productivity platform.",
 };
 
 const sections = [
   {
     title: "Using the service",
-    body: "By using Summerize, you agree to use the service lawfully, protect your account credentials, and avoid any activity that disrupts the platform or other users.",
+    body: "By using MailTurtle, you agree to use the service lawfully, protect your account credentials, and avoid any activity that disrupts the platform or other users.",
   },
   {
     title: "Connected accounts",
-    body: "If you connect a Gmail account, you authorize Summerize to access the Google data required to provide the features you enable, subject to your Google permissions.",
+    body: "If you connect a Gmail account, you authorize MailTurtle to access the Google data required to provide the features you enable, subject to your Google permissions.",
   },
   {
     title: "Availability",
@@ -39,13 +39,13 @@ export default function TermsPage() {
       <div className="mx-auto max-w-4xl rounded-3xl border border-emerald-100 bg-white p-8 shadow-sm sm:p-12">
         <div className="mb-10">
           <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-700">
-            Summerize
+            MailTurtle
           </p>
           <h1 className="mt-3 text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl">
             Terms of Service
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-slate-700 sm:text-lg">
-            These terms describe the basic rules for using Summerize and connecting your email accounts to the platform.
+            These terms describe the basic rules for using MailTurtle and connecting your email accounts to the platform.
           </p>
         </div>
 

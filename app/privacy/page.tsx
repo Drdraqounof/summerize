@@ -2,14 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | Summerize",
-  description: "Privacy policy for Summerize and its Gmail-connected email productivity features.",
+  title: "Privacy Policy | MailTurtle",
+  description: "Privacy policy for MailTurtle and its Gmail-connected email productivity features.",
 };
 
 const sections = [
   {
     title: "Information we collect",
-    body: "Summerize stores the account details, onboarding preferences, and email metadata needed to authenticate users, connect Gmail, and display summaries inside the app.",
+    body: "MailTurtle stores the account details, onboarding preferences, and email metadata needed to authenticate users, connect Gmail, and display summaries inside the app.",
   },
   {
     title: "How we use information",
@@ -17,7 +17,7 @@ const sections = [
   },
   {
     title: "Google user data",
-    body: "If you connect Gmail, Summerize accesses only the Google data required for the product experience you authorize. We do not sell Google user data or use it for advertising.",
+    body: "If you connect Gmail, MailTurtle accesses only the Google data required for the product experience you authorize. We do not sell Google user data or use it for advertising.",
   },
   {
     title: "Data sharing",
@@ -39,13 +39,13 @@ export default function PrivacyPage() {
       <div className="mx-auto max-w-4xl rounded-3xl border border-emerald-100 bg-white p-8 shadow-sm sm:p-12">
         <div className="mb-10">
           <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-700">
-            Summerize
+            MailTurtle
           </p>
           <h1 className="mt-3 text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl">
             Privacy Policy
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-slate-700 sm:text-lg">
-            This policy explains how Summerize collects, uses, and protects information when you use the website and connect a Gmail account.
+            This policy explains how MailTurtle collects, uses, and protects information when you use the website and connect a Gmail account.
           </p>
         </div>
 
