@@ -134,6 +134,9 @@ When deploying to production (e.g., `myapp.com`):
 2. **Make sure your app uses** `https://` (not `http://`)
 
 3. **Update environment variables** to use your domain
+   ```
+   APP_URL=https://www.nerve.watch
+   ```
 
 4. **Keep localhost redirect** for local development (optional):
    ```

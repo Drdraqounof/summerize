@@ -48,6 +48,7 @@ npm install
 3. Create a `.env.local` file:
 ```bash
 OPENAI_API_KEY=your_openai_api_key_here
+APP_URL=http://localhost:3001
 ```
 
 4. Run the development server:
@@ -144,8 +145,9 @@ The easiest way to deploy mailturtle is on [Vercel](https://vercel.com):
 
 1. Push your code to GitHub
 2. Connect your repository to Vercel
-3. Add `OPENAI_API_KEY` to environment variables
-4. Deploy
+3. Add `OPENAI_API_KEY` and `APP_URL` to environment variables
+4. Set `APP_URL` to your canonical HTTPS origin in production, for example `https://www.nerve.watch`
+5. Deploy
 
 [View deployment docs](https://nextjs.org/docs/app/building-your-application/deploying)
 
