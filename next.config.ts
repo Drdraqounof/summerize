@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 import withPWA from "next-pwa";
 
 // Core Next.js configuration
@@ -6,7 +7,9 @@ const nextConfig: NextConfig = {
   // Enable strict mode for development to catch common issues
   reactStrictMode: true,
   // Use Turbopack for faster builds (Next.js 16+ feature)
-  turbopack: {},
+  turbopack: {
+    root: path.join(__dirname),
+  },
 };
 
 // PWA configuration with enhanced failsafes
