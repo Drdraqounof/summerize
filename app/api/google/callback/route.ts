@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { storeToken } from "@/lib/tokenStore";
 import { getAppUrl, getGoogleCallbackUrl } from "@/lib/app-url";
+import { verifyGoogleOAuthState } from "@/lib/google-oauth-state";
 
 // Google's OAuth token exchange endpoint
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -33,9 +34,10 @@ export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
   const error = request.nextUrl.searchParams.get("error");
   const storedState = request.cookies.get("google_oauth_state")?.value;
+  const hasValidState = state ? verifyGoogleOAuthState(state) : false;
 
   // Log the redirect URI being used (for debugging)
-  const redirectUri = getGoogleCallbackUrl(request.url);
+  const redirectUri = getGoogleCallbackUrl(request);
   console.log("[Google Callback] Received request with redirect_uri:", redirectUri);
   console.log("[Google Callback] Parameters - state:", state, "code:", code?.substring(0, 10) + "...", "error:", error);
 
@@ -46,10 +48,16 @@ export async function GET(request: NextRequest) {
   }
 
   // Verify state token matches to prevent CSRF attacks
-  if (!code || !state || !storedState || state !== storedState) {
+  if (!code || !state || !hasValidState) {
     console.error("[Google Callback] State mismatch or missing code/state");
-    console.log("[Google Callback] stored state:", storedState, "received state:", state, "code present:", !!code);
+    console.log("[Google Callback] stored state:", storedState, "received state:", state, "code present:", !!code, "signed state valid:", hasValidState);
     return NextResponse.redirect(new URL("/connect?google=invalid-state", request.url));
+  }
+
+  if (!storedState) {
+    console.warn("[Google Callback] Missing state cookie on callback; relying on signed state validation.");
+  } else if (storedState !== state) {
+    console.warn("[Google Callback] State cookie did not match callback state; relying on signed state validation.");
   }
 
   // Build the same redirect_uri that was sent in the initial request
@@ -117,7 +125,7 @@ export async function GET(request: NextRequest) {
     console.log("[Google Callback] Stored access token for:", userInfo.email);
   }
 
-  const redirect = new URL("/connect", getAppUrl(request.url));
+  const redirect = new URL("/connect", getAppUrl(request));
   redirect.searchParams.set("google", "connected");
   redirect.searchParams.set("provider", "gmail");
 

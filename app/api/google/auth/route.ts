@@ -1,6 +1,6 @@
-import { randomBytes } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getGoogleCallbackUrl } from "@/lib/app-url";
+import { createGoogleOAuthState } from "@/lib/google-oauth-state";
 
 // Google's OAuth authorization endpoint URL
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -96,9 +96,9 @@ export async function GET(request: NextRequest) {
     // STEP 3: Generate OAuth parameters
     // ============================================================
     // Extract the base URL (e.g., http://localhost:3000)
-    const redirectUri = getGoogleCallbackUrl(request.url);
+    const redirectUri = getGoogleCallbackUrl(request);
     // Generate a random token to prevent CSRF (Cross-Site Request Forgery) attacks
-    const state = randomBytes(16).toString("hex");
+    const state = createGoogleOAuthState();
 
     // ============================================================
     // STEP 4: Validate the redirect URI format

@@ -29,7 +29,7 @@ const sections = [
   },
   {
     title: "Contact",
-    body: "For privacy questions or data requests, contact roanejuju14@gmail.com.",
+    body: "For privacy ques r data requests, contact roanejuju14@gmail.com.",
   },
 ];
 

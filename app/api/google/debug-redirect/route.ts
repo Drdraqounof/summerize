@@ -3,7 +3,7 @@ import { getGoogleCallbackUrl } from "@/lib/app-url";
 
 export async function GET(request: NextRequest) {
   try {
-    const redirectUri = getGoogleCallbackUrl(request.url);
+    const redirectUri = getGoogleCallbackUrl(request);
     return NextResponse.json({
       redirect_uri: redirectUri,
       app_url: process.env.APP_URL ?? null,
