@@ -43,7 +43,9 @@ model UserPreference {
   hasUsedAiBefore       String?
   focusAreas            String[]  @default([])
   assistantStyle        String?
+  notificationEnabled   Boolean   @default(true)
   notificationFrequency String?
+  lastDigestSentAt      DateTime?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
@@ -58,6 +60,7 @@ model Email {
   id         String                   @id @default(cuid())
   userId     String
   gmailId    String?                  @unique
+  gmailLabel String?                  @default("inbox")
   subject    String
   from       String
   to         String
@@ -72,6 +75,8 @@ model Email {
   isSpam     Boolean                  @default(false)
   isFlagged  Boolean                  @default(false)
   summary    String?
+  shouldNotify Boolean                @default(false)
+  matchReason String?
   keyPoints  String?
   createdAt  DateTime                 @default(now())
   updatedAt  DateTime                 @updatedAt
@@ -82,6 +87,7 @@ model Email {
 
   @@index([userId])
   @@index([gmailId])
+  @@index([gmailLabel])
   @@index([isRead])
   @@index([isSpam])
 }

@@ -34,67 +34,91 @@ export default function Home() {
   }, [isLoggedIn, router]);
 
   return (
-    <div className="min-h-screen overflow-hidden relative" style={{backgroundColor: "#f0ffea"}}>
+    <div className="relative min-h-screen overflow-x-clip" style={{ backgroundColor: "#f0ffea" }}>
+      {/* Sticky Header */}
+      <div className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-green-100 shadow-sm">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 flex justify-between items-center gap-4">
+          <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-green-700 whitespace-nowrap">MailTurtle</div>
+          <div className="flex gap-3 sm:gap-4 lg:gap-6 items-center text-xs sm:text-sm lg:text-base">
+            <Link
+              href="/privacy"
+              className="font-medium text-slate-600 hover:text-green-700 transition whitespace-nowrap"
+            >
+              Privacy
+            </Link>
+            <span className="text-slate-300">•</span>
+            <Link
+              href="/terms"
+              className="font-medium text-slate-600 hover:text-green-700 transition whitespace-nowrap"
+            >
+              Terms
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Add padding to account for fixed header */}
+      <div className="pt-16 sm:pt-20" />
 
       {/* Decorative Background Shapes */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {/* Large circle top-right */}
         <motion.div
-          className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-green-200/40"
+          className="absolute -top-24 -right-24 h-56 w-56 rounded-full bg-green-200/40 sm:-top-32 sm:-right-32 sm:h-80 sm:w-80 lg:h-96 lg:w-96"
           initial={{ opacity: 0, x: 100, y: -100 }}
           animate={{ opacity: 1, x: 0, y: 0, scale: [1, 1.1, 1], rotate: [0, 10, 0] }}
           transition={{ opacity: { duration: 1 }, x: { duration: 1.2 }, y: { duration: 1.2 }, scale: { duration: 12, repeat: Infinity, ease: "easeInOut", delay: 1.2 }, rotate: { duration: 12, repeat: Infinity, ease: "easeInOut", delay: 1.2 } }}
         />
         {/* Small circle top-left */}
         <motion.div
-          className="absolute top-40 -left-16 w-48 h-48 rounded-full bg-emerald-200/50"
+          className="absolute left-[-3.5rem] top-36 h-24 w-24 rounded-full bg-emerald-200/50 sm:-left-16 sm:top-40 sm:h-40 sm:w-40 lg:h-48 lg:w-48"
           initial={{ opacity: 0, x: -80 }}
           animate={{ opacity: 1, x: 0, y: [0, -20, 0] }}
           transition={{ opacity: { duration: 0.8, delay: 0.3 }, x: { duration: 1, delay: 0.3 }, y: { duration: 8, repeat: Infinity, ease: "easeInOut", delay: 1.3 } }}
         />
         {/* Diamond shape mid-right */}
         <motion.div
-          className="absolute top-[600px] -right-10 w-40 h-40 bg-green-300/30 rotate-45"
+          className="absolute top-[34rem] right-0 hidden h-28 w-28 bg-green-300/30 rotate-45 md:block lg:top-[600px] lg:-right-10 lg:h-40 lg:w-40"
           initial={{ opacity: 0, x: 80 }}
           animate={{ opacity: 1, x: 0, rotate: [45, 55, 45], scale: [1, 1.15, 1] }}
           transition={{ opacity: { duration: 0.8, delay: 0.5 }, x: { duration: 1, delay: 0.5 }, rotate: { duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1.5 }, scale: { duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1.5 } }}
         />
         {/* Pill shape left */}
         <motion.div
-          className="absolute top-[900px] -left-20 w-60 h-24 rounded-full bg-emerald-300/25"
+          className="absolute top-[48rem] -left-12 hidden h-20 w-40 rounded-full bg-emerald-300/25 md:block lg:top-[900px] lg:-left-20 lg:h-24 lg:w-60"
           initial={{ opacity: 0, x: -100 }}
           animate={{ opacity: 1, x: [0, 30, 0] }}
           transition={{ opacity: { duration: 0.8, delay: 0.7 }, x: { duration: 9, repeat: Infinity, ease: "easeInOut", delay: 1.5 } }}
         />
         {/* Large ring center-right */}
         <motion.div
-          className="absolute top-[1300px] right-20 w-64 h-64 rounded-full border-[6px] border-green-300/30"
+          className="absolute right-8 top-[72rem] hidden h-40 w-40 rounded-full border-[6px] border-green-300/30 md:block lg:right-20 lg:top-[1300px] lg:h-64 lg:w-64"
           initial={{ opacity: 0, scale: 0.5 }}
           animate={{ opacity: 1, scale: [1, 1.08, 1], rotate: [0, -15, 0] }}
           transition={{ opacity: { duration: 1, delay: 0.9 }, scale: { duration: 14, repeat: Infinity, ease: "easeInOut", delay: 1.5 }, rotate: { duration: 14, repeat: Infinity, ease: "easeInOut", delay: 1.5 } }}
         />
         {/* Small dot cluster */}
         <motion.div
-          className="absolute top-[400px] left-[10%] w-6 h-6 rounded-full bg-green-400/40"
+          className="absolute left-[8%] top-[24rem] h-4 w-4 rounded-full bg-green-400/40 sm:left-[10%] sm:top-[400px] sm:h-6 sm:w-6"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: [0, -15, 0] }}
           transition={{ opacity: { duration: 0.6, delay: 0.4 }, y: { duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 } }}
         />
         <motion.div
-          className="absolute top-[430px] left-[12%] w-4 h-4 rounded-full bg-emerald-400/30"
+          className="absolute left-[12%] top-[25rem] h-3 w-3 rounded-full bg-emerald-400/30 sm:top-[430px] sm:h-4 sm:w-4"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: [0, -10, 0] }}
           transition={{ opacity: { duration: 0.6, delay: 0.6 }, y: { duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1.2 } }}
         />
         <motion.div
-          className="absolute top-[415px] left-[14%] w-3 h-3 rounded-full bg-green-500/25"
+          className="absolute left-[16%] top-[24.5rem] h-2.5 w-2.5 rounded-full bg-green-500/25 sm:left-[14%] sm:top-[415px] sm:h-3 sm:w-3"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: [0, -12, 0] }}
           transition={{ opacity: { duration: 0.6, delay: 0.8 }, y: { duration: 4, repeat: Infinity, ease: "easeInOut", delay: 1.4 } }}
         />
         {/* Triangle shape bottom-left */}
         <motion.div
-          className="absolute bottom-60 left-10 w-0 h-0"
+          className="absolute bottom-40 left-6 hidden h-0 w-0 md:block lg:bottom-60 lg:left-10"
           style={{ borderLeft: "50px solid transparent", borderRight: "50px solid transparent", borderBottom: "86px solid rgba(74,222,128,0.2)" }}
           initial={{ opacity: 0, x: -60, y: 40 }}
           animate={{ opacity: 1, x: 0, y: [0, -15, 0], rotate: [0, 20, 0] }}
@@ -102,7 +126,7 @@ export default function Home() {
         />
         {/* Rounded square bottom-right */}
         <motion.div
-          className="absolute bottom-40 right-[15%] w-28 h-28 rounded-2xl bg-green-200/30 rotate-12"
+          className="absolute bottom-24 right-[10%] hidden h-20 w-20 rounded-2xl bg-green-200/30 rotate-12 md:block lg:bottom-40 lg:right-[15%] lg:h-28 lg:w-28"
           initial={{ opacity: 0, x: 60 }}
           animate={{ opacity: 1, x: 0, rotate: [12, 25, 12] }}
           transition={{ opacity: { duration: 0.8, delay: 1.1 }, x: { duration: 1, delay: 1.1 }, rotate: { duration: 13, repeat: Infinity, ease: "easeInOut", delay: 1.8 } }}
@@ -110,30 +134,15 @@ export default function Home() {
       </div>
 
       {/* Hero Section */}
-      <div className="relative px-4 py-20 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <div className="mb-10 flex flex-wrap items-center justify-center gap-3 text-sm sm:justify-end">
-          <Link
-            href="/privacy"
-            className="rounded-full border border-emerald-300 bg-white/80 px-4 py-2 font-medium text-emerald-700 shadow-sm transition hover:border-emerald-400 hover:text-emerald-800"
-          >
-            Privacy Policy
-          </Link>
-          <Link
-            href="/terms"
-            className="rounded-full border border-emerald-300 bg-white/80 px-4 py-2 font-medium text-emerald-700 shadow-sm transition hover:border-emerald-400 hover:text-emerald-800"
-          >
-            Terms of Service
-          </Link>
-        </div>
-
+      <div className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
         <motion.div
-          className="text-center mb-16"
+          className="mb-14 text-center sm:mb-16"
           initial="hidden"
           animate="visible"
           variants={stagger}
         >
           <motion.div
-            className="relative w-[150px] h-[150px] mx-auto mb-8"
+            className="relative mx-auto mb-6 h-[clamp(6rem,18vw,9.375rem)] w-[clamp(6rem,18vw,9.375rem)] sm:mb-8"
             variants={fadeUp}
             transition={{ duration: 0.6 }}
           >
@@ -146,21 +155,21 @@ export default function Home() {
             />
           </motion.div>
           <motion.h1
-            className="text-[150px] font-bold text-green-700 drop-shadow-lg leading-none mb-4"
+            className="mb-3 text-[clamp(3.75rem,17vw,9.375rem)] font-bold leading-[0.9] text-green-700 drop-shadow-lg sm:mb-4"
             variants={fadeUp}
             transition={{ duration: 0.6 }}
           >
             MailTurtle
           </motion.h1>
           <motion.h2
-            className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4"
+            className="mb-4 text-2xl font-bold text-slate-900 sm:text-4xl"
             variants={fadeUp}
             transition={{ duration: 0.6 }}
           >
             AI-Powered Email Intelligence
           </motion.h2>
           <motion.p
-            className="text-xl text-slate-700 mb-8 max-w-2xl mx-auto"
+            className="mx-auto mb-8 max-w-2xl px-2 text-base leading-7 text-slate-700 sm:px-0 sm:text-xl"
             variants={fadeUp}
             transition={{ duration: 0.6 }}
           >
@@ -168,7 +177,7 @@ export default function Home() {
           </motion.p>
           <motion.a
             href="/login"
-            className="inline-block bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold py-3 px-10 rounded-lg transition"
+            className="inline-flex w-full items-center justify-center rounded-lg bg-gradient-to-r from-green-600 to-emerald-600 px-8 py-3 font-semibold text-white transition hover:from-green-700 hover:to-emerald-700 sm:w-auto sm:px-10"
             variants={fadeUp}
             transition={{ duration: 0.6 }}
             whileHover={{ scale: 1.05 }}
@@ -180,13 +189,13 @@ export default function Home() {
 
         {/* How AI Works */}
         <motion.div
-          className="grid md:grid-cols-3 gap-8 mb-16"
+          className="mb-16 grid gap-6 md:grid-cols-3 md:gap-8"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
           variants={stagger}
         >
-          <motion.div className="bg-white/60 backdrop-blur border border-green-200 rounded-xl p-8 shadow-sm" variants={fadeUp} transition={{ duration: 0.5 }}>
+          <motion.div className="rounded-xl border border-green-200 bg-white/60 p-6 shadow-sm backdrop-blur sm:p-8" variants={fadeUp} transition={{ duration: 0.5 }}>
             <div className="w-12 h-12 rounded-lg bg-green-500/20 flex items-center justify-center mb-4">
               <svg className="w-6 h-6 text-green-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" /></svg>
             </div>
@@ -196,7 +205,7 @@ export default function Home() {
             </p>
           </motion.div>
 
-          <motion.div className="bg-white/60 backdrop-blur border border-green-200 rounded-xl p-8 shadow-sm" variants={fadeUp} transition={{ duration: 0.5 }}>
+          <motion.div className="rounded-xl border border-green-200 bg-white/60 p-6 shadow-sm backdrop-blur sm:p-8" variants={fadeUp} transition={{ duration: 0.5 }}>
             <div className="w-12 h-12 rounded-lg bg-emerald-500/20 flex items-center justify-center mb-4">
               <svg className="w-6 h-6 text-emerald-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" /></svg>
             </div>
@@ -206,7 +215,7 @@ export default function Home() {
             </p>
           </motion.div>
 
-          <motion.div className="bg-white/60 backdrop-blur border border-green-200 rounded-xl p-8 shadow-sm" variants={fadeUp} transition={{ duration: 0.5 }}>
+          <motion.div className="rounded-xl border border-green-200 bg-white/60 p-6 shadow-sm backdrop-blur sm:p-8" variants={fadeUp} transition={{ duration: 0.5 }}>
             <div className="w-12 h-12 rounded-lg bg-green-500/20 flex items-center justify-center mb-4">
               <svg className="w-6 h-6 text-green-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" /></svg>
             </div>
@@ -219,7 +228,7 @@ export default function Home() {
 
         {/* Google Integration */}
         <motion.div
-          className="bg-white/50 backdrop-blur border border-green-200 rounded-xl p-12 mb-16 shadow-sm relative overflow-hidden"
+          className="relative mb-16 overflow-hidden rounded-xl border border-green-200 bg-white/50 p-6 shadow-sm backdrop-blur sm:p-8 lg:p-12"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
@@ -227,11 +236,11 @@ export default function Home() {
           transition={{ duration: 0.6 }}
         >
           {/* Decorative shape inside card */}
-          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-green-200/30" />
-          <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-emerald-200/20" />
-          <div className="grid md:grid-cols-2 gap-12 items-center relative">
+          <div className="absolute -right-10 -top-10 hidden h-40 w-40 rounded-full bg-green-200/30 sm:block" />
+          <div className="absolute -bottom-8 -left-8 hidden h-32 w-32 rounded-full bg-emerald-200/20 sm:block" />
+          <div className="relative grid items-center gap-8 md:grid-cols-2 md:gap-12">
             <div>
-              <h2 className="text-3xl font-bold text-slate-900 mb-6">Secure Google Integration</h2>
+              <h2 className="mb-6 text-2xl font-bold text-slate-900 sm:text-3xl">Secure Google Integration</h2>
               <p className="text-slate-700 mb-4">
                 MailTurtle integrates securely with Google using OAuth 2.0 authentication. This means:
               </p>
@@ -254,8 +263,8 @@ export default function Home() {
                 </li>
               </ul>
             </div>
-            <div className="flex justify-center">
-              <div className="w-48 h-48 rounded-full bg-gradient-to-br from-green-100 to-emerald-200 flex items-center justify-center shadow-inner">
+            <div className="flex justify-center md:justify-end">
+              <div className="flex h-36 w-36 items-center justify-center rounded-full bg-gradient-to-br from-green-100 to-emerald-200 shadow-inner sm:h-44 sm:w-44 lg:h-48 lg:w-48">
                 <svg className="w-20 h-20 text-green-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" /></svg>
               </div>
             </div>
@@ -264,13 +273,13 @@ export default function Home() {
 
         {/* AI Guidelines & Privacy */}
         <motion.div
-          className="grid md:grid-cols-2 gap-8 mb-16"
+          className="mb-16 grid gap-6 md:grid-cols-2 md:gap-8"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
           variants={stagger}
         >
-          <motion.div className="bg-white/50 backdrop-blur border border-green-200 rounded-xl p-8 shadow-sm" variants={fadeUp} transition={{ duration: 0.5 }}>
+          <motion.div className="rounded-xl border border-green-200 bg-white/50 p-6 shadow-sm backdrop-blur sm:p-8" variants={fadeUp} transition={{ duration: 0.5 }}>
             <h2 className="text-2xl font-bold text-slate-900 mb-4">AI Guidelines</h2>
             <p className="text-slate-700 mb-4">
               We follow strict guidelines for AI email analysis:
@@ -284,7 +293,7 @@ export default function Home() {
             </ul>
           </motion.div>
 
-          <motion.div className="bg-white/50 backdrop-blur border border-green-200 rounded-xl p-8 shadow-sm" variants={fadeUp} transition={{ duration: 0.5 }}>
+          <motion.div className="rounded-xl border border-green-200 bg-white/50 p-6 shadow-sm backdrop-blur sm:p-8" variants={fadeUp} transition={{ duration: 0.5 }}>
             <h2 className="text-2xl font-bold text-slate-900 mb-4">Data Usage</h2>
             <p className="text-slate-700 mb-4">
               How we use your information to improve:
@@ -301,17 +310,17 @@ export default function Home() {
 
         {/* What Gets Analyzed */}
         <motion.div
-          className="bg-gradient-to-r from-green-200/50 to-emerald-200/50 border border-green-300/60 rounded-xl p-12 mb-16 relative overflow-hidden"
+          className="relative mb-16 overflow-hidden rounded-xl border border-green-300/60 bg-gradient-to-r from-green-200/50 to-emerald-200/50 p-6 sm:p-8 lg:p-12"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
           variants={fadeUp}
           transition={{ duration: 0.6 }}
         >
-          <div className="absolute top-4 right-8 w-20 h-20 rounded-full border-4 border-green-300/30" />
-          <div className="absolute bottom-4 left-8 w-12 h-12 bg-emerald-300/20 rotate-45" />
-          <h2 className="text-3xl font-bold text-slate-900 mb-8 text-center relative">What Your AI Analyzes</h2>
-          <div className="grid md:grid-cols-5 gap-6 text-center relative">
+          <div className="absolute right-4 top-4 hidden h-20 w-20 rounded-full border-4 border-green-300/30 sm:block sm:right-8" />
+          <div className="absolute bottom-4 left-8 hidden h-12 w-12 rotate-45 bg-emerald-300/20 sm:block" />
+          <h2 className="relative mb-8 text-center text-2xl font-bold text-slate-900 sm:text-3xl">What Your AI Analyzes</h2>
+          <div className="relative grid gap-6 text-center sm:grid-cols-2 xl:grid-cols-5">
             <motion.div variants={fadeUp} transition={{ duration: 0.4 }}>
               <div className="w-10 h-10 mx-auto mb-2 rounded-lg bg-green-500/20 flex items-center justify-center">
                 <svg className="w-5 h-5 text-green-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" /></svg>
@@ -359,7 +368,7 @@ export default function Home() {
           variants={stagger}
         >
           <motion.h2 className="text-3xl font-bold text-slate-900 mb-8 text-center" variants={fadeUp} transition={{ duration: 0.5 }}>Key Features</motion.h2>
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid gap-6 md:grid-cols-2">
             <motion.div className="bg-white/50 border border-green-200 rounded-xl p-6 shadow-sm" variants={fadeUp} transition={{ duration: 0.5 }}>
               <h3 className="text-lg font-semibold text-slate-900 mb-2">Progressive Web App</h3>
               <p className="text-slate-700">Works offline and can be installed on any device like a native app</p>
@@ -388,11 +397,11 @@ export default function Home() {
           variants={fadeUp}
           transition={{ duration: 0.6 }}
         >
-          <h2 className="text-3xl font-bold text-slate-900 mb-4">Ready to Transform Your Email?</h2>
-          <p className="text-slate-700 mb-8">Join thousands of users who are already organizing their inbox with AI</p>
+          <h2 className="mb-4 text-2xl font-bold text-slate-900 sm:text-3xl">Ready to Transform Your Email?</h2>
+          <p className="mb-8 text-slate-700 sm:text-lg">Join thousands of users who are already organizing their inbox with AI</p>
           <motion.a
             href="/login"
-            className="inline-block bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold py-4 px-12 rounded-lg transition text-lg"
+            className="inline-flex w-full items-center justify-center rounded-lg bg-gradient-to-r from-green-600 to-emerald-600 px-8 py-4 text-base font-semibold text-white transition hover:from-green-700 hover:to-emerald-700 sm:w-auto sm:px-12 sm:text-lg"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.97 }}
           >

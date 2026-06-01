@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  isMissingEmailNotificationColumnError,
+  supportsEmailNotificationPersistence,
+} from "@/lib/email-schema";
+import { prisma } from "@/lib/prisma";
 import { getToken } from "@/lib/tokenStore";
 
 const GMAIL_API_URL = "https://www.googleapis.com/gmail/v1/users/me";
@@ -44,6 +49,17 @@ export async function GET(request: NextRequest) {
   try {
     // Get the user email from query params or headers
     const email = request.nextUrl.searchParams.get("email");
+    const userEmail = request.nextUrl.searchParams.get("userEmail")?.trim().toLowerCase();
+    const label = request.nextUrl.searchParams.get("label") || "inbox";
+    
+    // Validate label to prevent injection attacks
+    const validLabels = ["inbox", "spam", "promotions", "updates"];
+    if (!validLabels.includes(label)) {
+      return NextResponse.json(
+        { error: "Invalid label. Allowed: inbox, spam, promotions, updates" },
+        { status: 400 }
+      );
+    }
     
     if (!email) {
       return NextResponse.json(
@@ -51,6 +67,13 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const user = userEmail
+      ? await prisma.user.findUnique({
+          where: { email: userEmail },
+          select: { id: true },
+        })
+      : null;
 
     // Retrieve the stored access token
     const accessToken = getToken(email);
@@ -62,7 +85,20 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch the list of messages from Gmail
-    const messagesResponse = await fetch(`${GMAIL_API_URL}/messages?maxResults=20&q=in:inbox`, {
+    const labelQuery = (() => {
+      switch (label) {
+        case "spam":
+          return "is:spam";
+        case "promotions":
+          return "category:promotions";
+        case "updates":
+          return "category:updates";
+        default:
+          return "in:inbox";
+      }
+    })();
+
+    const messagesResponse = await fetch(`${GMAIL_API_URL}/messages?maxResults=20&q=${encodeURIComponent(labelQuery)}`, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
@@ -116,7 +152,7 @@ export async function GET(request: NextRequest) {
     const messageDetails = await Promise.all(emailPromises);
 
     // Transform Gmail messages into our Email format
-    const emails = messageDetails
+    const transformedEmails = messageDetails
       .filter((msg): msg is GmailMessage => msg !== null)
       .map((msg) => {
         const headers = msg.payload?.headers || [];
@@ -137,13 +173,124 @@ export async function GET(request: NextRequest) {
           accountEmail: email,
           from,
           subject,
+          to: getHeader("To") || email,
+          cc: getHeader("Cc") || null,
           preview,
           body: extractedContent.textBody,
           bodyHtml: extractedContent.htmlBody,
-          date: new Date(parseInt(msg.internalDate)).toLocaleString(),
-          analyzed: false,
+          receivedAt: new Date(parseInt(msg.internalDate)),
+          gmailLabel: label,
         };
       });
+
+    const supportsNotificationPersistence = user
+      ? await supportsEmailNotificationPersistence()
+      : false;
+
+    const emails = user
+      ? await Promise.all(
+          transformedEmails.map(async (emailRecord) => {
+            try {
+              const persisted = await prisma.email.upsert({
+                where: { gmailId: emailRecord.id },
+                update: {
+                  subject: emailRecord.subject,
+                  from: emailRecord.from,
+                  to: emailRecord.to,
+                  cc: emailRecord.cc,
+                  preview: emailRecord.preview,
+                  body: emailRecord.body,
+                  receivedAt: emailRecord.receivedAt,
+                  userId: user.id,
+                  gmailLabel: emailRecord.gmailLabel,
+                },
+                create: {
+                  userId: user.id,
+                  gmailId: emailRecord.id,
+                  subject: emailRecord.subject,
+                  from: emailRecord.from,
+                  to: emailRecord.to,
+                  cc: emailRecord.cc,
+                  preview: emailRecord.preview,
+                  body: emailRecord.body,
+                  receivedAt: emailRecord.receivedAt,
+                  gmailLabel: emailRecord.gmailLabel,
+                },
+                select: {
+                  from: true,
+                  subject: true,
+                  preview: true,
+                  body: true,
+                  receivedAt: true,
+                  summary: true,
+                  analyzedAt: true,
+                  ...(supportsNotificationPersistence
+                    ? {
+                        shouldNotify: true,
+                        matchReason: true,
+                      }
+                    : {}),
+                  category: {
+                    select: {
+                      category: true,
+                    },
+                  },
+                },
+              });
+
+              return {
+                id: emailRecord.id,
+                accountEmail: email,
+                from: persisted.from,
+                subject: persisted.subject,
+                preview: persisted.preview ?? emailRecord.preview,
+                body: persisted.body ?? emailRecord.body,
+                bodyHtml: emailRecord.bodyHtml,
+                date: persisted.receivedAt.toISOString(),
+                category: persisted.category?.category,
+                summary: persisted.summary ?? undefined,
+                analyzed: Boolean(persisted.analyzedAt),
+                gmailLabel: emailRecord.gmailLabel,
+                shouldNotify: supportsNotificationPersistence
+                  ? (persisted as { shouldNotify: boolean }).shouldNotify
+                  : undefined,
+                matchReason: supportsNotificationPersistence
+                  ? (persisted as { matchReason: string | null }).matchReason ?? undefined
+                  : undefined,
+              };
+            } catch (error) {
+              if (isMissingEmailNotificationColumnError(error)) {
+                console.warn("[Gmail API] Skipping notification field persistence until Prisma schema is applied.");
+                return {
+                  id: emailRecord.id,
+                  accountEmail: email,
+                  from: emailRecord.from,
+                  subject: emailRecord.subject,
+                  preview: emailRecord.preview,
+                  body: emailRecord.body,
+                  bodyHtml: emailRecord.bodyHtml,
+                  date: emailRecord.receivedAt.toISOString(),
+                  gmailLabel: emailRecord.gmailLabel,
+                  analyzed: false,
+                };
+              }
+
+              throw error;
+            }
+          })
+        )
+      : transformedEmails.map((emailRecord) => ({
+          id: emailRecord.id,
+          accountEmail: email,
+          from: emailRecord.from,
+          subject: emailRecord.subject,
+          preview: emailRecord.preview,
+          body: emailRecord.body,
+          bodyHtml: emailRecord.bodyHtml,
+          date: emailRecord.receivedAt.toISOString(),
+          gmailLabel: emailRecord.gmailLabel,
+          analyzed: false,
+        }));
 
     console.log("[Gmail API] Successfully fetched", emails.length, "emails for", email);
 

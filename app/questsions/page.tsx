@@ -138,46 +138,46 @@ export default function QuestionsPage() {
 	};
 
 	return (
-		<div className="min-h-screen bg-[#f0ffea] px-4 py-16 sm:px-6 lg:px-8">
-			<div className="mx-auto max-w-5xl rounded-[2rem] border border-green-200 bg-white/85 p-8 shadow-xl shadow-green-100 backdrop-blur sm:p-10">
-				<div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+		<div className="min-h-screen bg-[#f0ffea] px-4 py-12 sm:py-16 sm:px-6 lg:px-8">
+			<div className="mx-auto max-w-5xl rounded-[1.5rem] sm:rounded-[2rem] border border-green-200 bg-white/85 p-6 sm:p-8 lg:p-10 shadow-xl shadow-green-100 backdrop-blur">
+				<div className="mb-6 sm:mb-8 flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-end lg:justify-between">
 					<div>
-						<p className="mb-3 inline-flex rounded-full bg-green-100 px-4 py-1 text-sm font-semibold text-green-800">
+						<p className="mb-2 sm:mb-3 inline-flex rounded-full bg-green-100 px-3 sm:px-4 py-1 text-xs sm:text-sm font-semibold text-green-800">
 							Step {step} of 2
 						</p>
-						<h1 className="text-4xl font-bold text-slate-900">
+						<h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900">
 							{step === 1 ? "Tell us how you want Mailturtle to help" : "Choose your notification schedule"}
 						</h1>
-						<p className="mt-3 max-w-2xl text-base text-slate-700">
+						<p className="mt-2 sm:mt-3 max-w-2xl text-xs sm:text-sm lg:text-base text-slate-700">
 							{step === 1
 								? "Answer four setup questions so returning sign-ins can skip this step and go straight into Gmail connection."
 								: "Pick how often you want to be notified when matching emails are found."}
 						</p>
 					</div>
-					<div className="rounded-[1.5rem] border border-green-200 bg-green-50 px-5 py-4 text-sm text-slate-700">
-						<p className="font-semibold uppercase tracking-[0.2em] text-green-700">Setup flow</p>
-						<p className="mt-2">Questions first, then Google inbox connection.</p>
+					<div className="rounded-[1.25rem] sm:rounded-[1.5rem] border border-green-200 bg-green-50 px-3 sm:px-5 py-3 sm:py-4 text-xs sm:text-sm text-slate-700">
+						<p className="font-semibold uppercase tracking-[0.15em] sm:tracking-[0.2em] text-green-700">Setup flow</p>
+						<p className="mt-1 sm:mt-2 text-xs">Questions first, then Google inbox connection.</p>
 					</div>
 				</div>
 
 				{step === 1 ? (
 					<div className="space-y-8">
-						<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-							<div className="rounded-[1.5rem] border border-green-200 bg-green-50/80 p-5">
-								<p className="text-sm font-semibold uppercase tracking-[0.18em] text-green-700">Question 1</p>
-								<p className="mt-2 text-sm text-slate-700">Have you used AI before?</p>
-							</div>
-							<div className="rounded-[1.5rem] border border-green-200 bg-white p-5">
-								<p className="text-sm font-semibold uppercase tracking-[0.18em] text-green-700">Question 2</p>
-								<p className="mt-2 text-sm text-slate-700">Which emails matter most?</p>
-							</div>
-							<div className="rounded-[1.5rem] border border-green-200 bg-green-50/80 p-5">
-								<p className="text-sm font-semibold uppercase tracking-[0.18em] text-green-700">Question 3</p>
-								<p className="mt-2 text-sm text-slate-700">How should Mailturtle help?</p>
-							</div>
-							<div className="rounded-[1.5rem] border border-green-200 bg-white p-5">
-								<p className="text-sm font-semibold uppercase tracking-[0.18em] text-green-700">Question 4</p>
-								<p className="mt-2 text-sm text-slate-700">How often should notifications arrive?</p>
+<div className="grid gap-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-4">
+					<div className="rounded-[1.25rem] sm:rounded-[1.5rem] border border-green-200 bg-green-50/80 p-3 sm:p-4 lg:p-5">
+						<p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.15em] sm:tracking-[0.18em] text-green-700">Question 1</p>
+						<p className="mt-1 sm:mt-2 text-xs sm:text-sm text-slate-700">Have you used AI before?</p>
+					</div>
+					<div className="rounded-[1.25rem] sm:rounded-[1.5rem] border border-green-200 bg-white p-3 sm:p-4 lg:p-5">
+						<p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.15em] sm:tracking-[0.18em] text-green-700">Question 2</p>
+						<p className="mt-1 sm:mt-2 text-xs sm:text-sm text-slate-700">Which emails matter most?</p>
+					</div>
+					<div className="rounded-[1.25rem] sm:rounded-[1.5rem] border border-green-200 bg-green-50/80 p-3 sm:p-4 lg:p-5">
+						<p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.15em] sm:tracking-[0.18em] text-green-700">Question 3</p>
+						<p className="mt-1 sm:mt-2 text-xs sm:text-sm text-slate-700">How should Mailturtle help?</p>
+					</div>
+					<div className="rounded-[1.25rem] sm:rounded-[1.5rem] border border-green-200 bg-white p-3 sm:p-4 lg:p-5">
+						<p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.15em] sm:tracking-[0.18em] text-green-700">Question 4</p>
+						<p className="mt-1 sm:mt-2 text-xs sm:text-sm text-slate-700">How often should notifications arrive?</p>
 							</div>
 						</div>
 
@@ -270,14 +270,14 @@ export default function QuestionsPage() {
 							</div>
 						</fieldset>
 
-						{error ? <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+					{error ? <div className="rounded-xl sm:rounded-2xl bg-red-50 px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-red-700">{error}</div> : null}
 
-						<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-							<p className="text-sm text-slate-600">Next you will choose whether matching notifications arrive hourly, daily, or weekly.</p>
-							<button
-								type="button"
-								onClick={handleNext}
-								className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-green-600 to-emerald-600 px-8 py-3 font-semibold text-white transition hover:from-green-700 hover:to-emerald-700"
+					<div className="flex flex-col gap-3 sm:gap-4 sm:flex-row sm:items-center sm:justify-between">
+						<p className="text-xs sm:text-sm text-slate-600">Next you will choose whether matching notifications arrive hourly, daily, or weekly.</p>
+						<button
+							type="button"
+							onClick={handleNext}
+							className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-green-600 to-emerald-600 px-6 sm:px-8 py-2 sm:py-3 text-sm sm:text-base font-semibold text-white transition hover:from-green-700 hover:to-emerald-700 whitespace-nowrap"
 							>
 								Continue to Notifications
 							</button>

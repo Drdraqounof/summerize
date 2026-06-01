@@ -29,8 +29,8 @@ export default function EmailDetail({ assistantStyle, email }: EmailDetailProps)
 
   return (
     <div className="bg-white">
-      <div className="p-6 border-b border-gray-200">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">{email.subject}</h2>
+      <div className="p-4 sm:p-6 border-b border-gray-200">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 break-words">{email.subject}</h2>
 
         {email.shouldNotify ? (
           <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
@@ -59,14 +59,14 @@ export default function EmailDetail({ assistantStyle, email }: EmailDetailProps)
         {/* AI Analysis Card */}
         {email.category && (
           <div
-            className={`p-4 rounded-lg border-2 ${
+            className={`p-3 sm:p-4 rounded-lg border-2 ${
               categoryColors[email.category] || categoryColors.Other
             }`}
           >
-            <div className="flex items-start gap-3">
+            <div className="flex items-start gap-2 sm:gap-3">
               <span className="text-lg">✨</span>
-              <div className="flex-1">
-                <p className="font-semibold text-sm mb-1">AI Analysis</p>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-xs sm:text-sm mb-1">AI Analysis</p>
                 {showSummaryFirst && email.summary ? (
                   <p className="text-sm mb-2">
                     <strong>Summary:</strong> {email.summary}
@@ -91,7 +91,7 @@ export default function EmailDetail({ assistantStyle, email }: EmailDetailProps)
         )}
       </div>
 
-      <div className="p-6 max-w-none text-gray-700 [&_a]:text-blue-600 [&_a]:underline [&_img]:h-auto [&_img]:max-w-full [&_table]:w-full [&_td]:align-top [&_th]:align-top">
+      <div className="p-4 sm:p-6 max-w-none text-sm sm:text-base text-gray-700 [&_a]:text-blue-600 [&_a]:underline [&_img]:h-auto [&_img]:max-w-full [&_table]:w-full [&_table]:text-xs sm:[&_table]:text-sm [&_td]:align-top [&_th]:align-top [&_td]:p-2 sm:[&_td]:p-3 [&_th]:p-2 sm:[&_th]:p-3">
         {email.bodyHtml ? (
           <div dangerouslySetInnerHTML={{ __html: email.bodyHtml }} />
         ) : (

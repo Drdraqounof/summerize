@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  isMissingEmailNotificationColumnError,
+  supportsEmailNotificationPersistence,
+} from "@/lib/email-schema";
 import OpenAI from "openai";
+import { prisma } from "@/lib/prisma";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -7,6 +12,13 @@ const openai = new OpenAI({
 
 // In-memory cache for analyzed emails
 const analysisCache = new Map<string, { category: string; summary: string; shouldNotify: boolean; matchReason: string }>();
+
+interface AnalysisResult {
+  category: string;
+  summary: string;
+  shouldNotify: boolean;
+  matchReason: string;
+}
 
 interface ScanPreferences {
   aiExperience?: string;
@@ -125,7 +137,7 @@ async function batchAnalyzeEmails(
   emails: Array<{ id: string; subject: string; body: string }>,
   scanPreferences?: ScanPreferences,
 ) {
-  const results: { [id: string]: { category: string; summary: string; shouldNotify: boolean; matchReason: string } } = {};
+  const results: Record<string, AnalysisResult> = {};
   const promptContext = buildPromptContext(scanPreferences);
 
   // Process in parallel for speed, but with rate limiting
@@ -196,6 +208,79 @@ ${promptContext}`,
   return results;
 }
 
+async function persistAnalysisResult(userId: string, gmailId: string, result: AnalysisResult) {
+  const email = await prisma.email.findFirst({
+    where: {
+      userId,
+      gmailId,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!email) {
+    return;
+  }
+
+  const supportsNotificationPersistence = await supportsEmailNotificationPersistence();
+
+  const data: {
+    analyzedAt: Date;
+    category?: {
+      upsert: {
+        create: {
+          category: string;
+          aiModel: string;
+        };
+        update: {
+          category: string;
+          aiModel: string;
+        };
+      };
+    };
+    matchReason?: string;
+    shouldNotify?: boolean;
+    summary: string;
+  } = {
+    summary: result.summary,
+    analyzedAt: new Date(),
+    category: result.category
+      ? {
+          upsert: {
+            create: {
+              category: result.category,
+              aiModel: "gpt-4o-mini",
+            },
+            update: {
+              category: result.category,
+              aiModel: "gpt-4o-mini",
+            },
+          },
+        }
+      : undefined,
+  };
+
+  if (supportsNotificationPersistence) {
+    data.shouldNotify = result.shouldNotify;
+    data.matchReason = result.matchReason;
+  }
+
+  try {
+    await prisma.email.update({
+      where: { id: email.id },
+      data,
+    });
+  } catch (error) {
+    if (isMissingEmailNotificationColumnError(error)) {
+      console.warn("[Analyze Email] Skipping notification field persistence until Prisma schema is applied.");
+      return;
+    }
+
+    throw error;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     if (!process.env.OPENAI_API_KEY) {
@@ -209,6 +294,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const payload = Array.isArray(body) ? { emails: body } : body;
     const scanPreferences = payload.scanPreferences as ScanPreferences | undefined;
+    const userEmail = payload.userEmail?.trim().toLowerCase() as string | undefined;
+    const user = userEmail
+      ? await prisma.user.findUnique({
+          where: { email: userEmail },
+          select: { id: true },
+        })
+      : null;
 
     // Check if this is a batch request or single email
     if (Array.isArray(body) || Array.isArray(payload.emails)) {
@@ -219,10 +311,26 @@ export async function POST(request: NextRequest) {
         body: string;
       }>;
       const results = await batchAnalyzeEmails(emails, scanPreferences);
+
+      if (user) {
+        await Promise.all(
+          emails.map(async (email) => {
+            const result = results[email.id];
+            if (result) {
+              await persistAnalysisResult(user.id, email.id, result);
+            }
+          })
+        );
+      }
+
       return NextResponse.json(results);
     } else {
       // Single email (legacy support)
-      const { subject, body: emailBody } = payload;
+      const { subject, body: emailBody, emailId } = payload as {
+        subject?: string;
+        body?: string;
+        emailId?: string;
+      };
 
       if (!subject || !emailBody) {
         return NextResponse.json(
@@ -266,7 +374,17 @@ ${promptContext}`,
         throw new Error("No response from OpenAI");
       }
 
-      const result = JSON.parse(content);
+      const result = JSON.parse(content) as AnalysisResult;
+
+      if (user && emailId) {
+        await persistAnalysisResult(user.id, emailId, {
+          category: result.category,
+          summary: result.summary,
+          shouldNotify: Boolean(result.shouldNotify),
+          matchReason: result.matchReason || "General inbox item",
+        });
+      }
+
       return NextResponse.json({
         category: result.category,
         summary: result.summary,

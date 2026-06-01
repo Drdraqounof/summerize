@@ -64,7 +64,7 @@ export default function EmailList({
         <button
           key={email.id}
           onClick={() => onSelectEmail(email.id)}
-          className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition border-l-4 ${
+          className={`w-full text-left px-3 sm:px-4 py-2 sm:py-3 hover:bg-gray-50 transition border-l-4 ${
             selectedId === email.id
               ? "border-blue-600 bg-blue-50"
               : "border-transparent"
@@ -75,30 +75,33 @@ export default function EmailList({
               {email.read ? "📖" : "📬"}
             </span>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <p className="text-sm font-semibold text-gray-900 truncate">
+              <div className="flex items-center gap-1 sm:gap-2 mb-1 flex-wrap">
+                <p className="text-xs sm:text-sm font-semibold text-gray-900 truncate">
                   {email.from}
                 </p>
                 {email.shouldNotify ? (
-                  <span className="text-xs px-2 py-0.5 rounded-full whitespace-nowrap bg-emerald-100 text-emerald-700">
+                  <span className="text-xs px-1.5 sm:px-2 py-0.5 rounded-full whitespace-nowrap bg-emerald-100 text-emerald-700 shrink-0">
                     Notify
                   </span>
                 ) : null}
                 {email.category ? (
                   <span
-                    className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${
+                    className={`text-xs px-1.5 sm:px-2 py-0.5 rounded-full whitespace-nowrap shrink-0 ${
                       categoryColors[email.category] || categoryColors.Other
                     }`}
                   >
                     {email.category}
                   </span>
                 ) : (
-                  <span className="text-xs text-gray-400">analyzing...</span>
+                  <span className="text-xs text-gray-400 shrink-0">analyzing...</span>
                 )}
               </div>
-              <p className="text-sm text-gray-700 truncate">{email.subject}</p>
+              <p className="text-xs sm:text-sm text-gray-700 truncate">{email.subject}</p>
               {showSummaryFirst && email.summary ? (
-                <p className="mt-1 text-xs text-blue-700 truncate">Summary: {email.summary}</p>
+                <>
+                  <p className="text-xs sm:text-sm text-gray-600 truncate">{email.summary}</p>
+                  <p className="mt-1 text-xs text-blue-700 truncate">Summary: {email.summary}</p>
+                </>
               ) : null}
               {showActionReasonFirst && email.shouldNotify && email.matchReason ? (
                 <p className="mt-1 text-xs text-emerald-700 truncate">Action cue: {email.matchReason}</p>

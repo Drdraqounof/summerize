@@ -35,6 +35,10 @@ export async function GET() {
       google: process.env.GOOGLE_CLIENT_ID ? "configured" : "missing",
       // Google OAuth secret for backend communication
       googleSecret: process.env.GOOGLE_CLIENT_SECRET ? "configured" : "missing",
+      // Resend API key for notification delivery
+      resend: process.env.RESEND_API_KEY ? "configured" : "missing",
+      // Resend sender email used for outbound digests
+      resendFromEmail: process.env.RESEND_FROM_EMAIL ? "configured" : "missing",
       // Service worker can only be checked in browser
       serviceWorker: "check in browser",
       // Current server timestamp for debugging time-based issues
@@ -47,7 +51,9 @@ export async function GET() {
     const allConfigured =
       checks.openai === "configured" &&
       checks.google === "configured" &&
-      checks.googleSecret === "configured";
+      checks.googleSecret === "configured" &&
+      checks.resend === "configured" &&
+      checks.resendFromEmail === "configured";
 
     // Log the status check results for server debugging
     console.log("[Health] Status check:", checks);

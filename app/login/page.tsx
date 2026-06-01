@@ -61,60 +61,69 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen overflow-hidden bg-[#f0ffea] px-4 py-16">
-      <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
-        <div className="relative overflow-hidden rounded-[2rem] border border-green-200 bg-gradient-to-br from-green-900 via-emerald-800 to-green-700 p-8 text-white shadow-2xl shadow-green-200 sm:p-10">
+      <button
+        onClick={() => router.back()}
+        className="mb-8 inline-flex items-center gap-2 text-slate-600 hover:text-green-700 transition font-medium"
+      >
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
+        Back
+      </button>
+      <div className="mx-auto grid w-full max-w-6xl gap-6 sm:gap-8 lg:gap-10 px-0 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+        <div className="relative overflow-hidden rounded-[1.5rem] sm:rounded-[2rem] border border-green-200 bg-gradient-to-br from-green-900 via-emerald-800 to-green-700 p-6 sm:p-8 lg:p-10 text-white shadow-2xl shadow-green-200">
           <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-white/10" />
           <div className="absolute bottom-0 left-0 h-40 w-40 -translate-x-1/3 translate-y-1/3 rounded-full bg-lime-200/20" />
           <p className="mb-4 inline-flex rounded-full border border-white/20 px-4 py-1 text-sm font-semibold text-green-50/90">
             mailturtle setup
           </p>
-          <h1 className="max-w-xl text-4xl font-bold leading-tight sm:text-5xl">
+          <h1 className="max-w-xl text-2xl sm:text-3xl lg:text-4xl font-bold leading-tight">
             Connect your inbox to smarter triage and summaries.
           </h1>
-          <p className="mt-4 max-w-xl text-base leading-7 text-green-50/85">
+          <p className="mt-3 sm:mt-4 max-w-xl text-sm sm:text-base leading-6 sm:leading-7 text-green-50/85">
             Sign in first, answer four quick setup questions, and returning users go straight into Google inbox connection.
           </p>
-          <div className="mt-10 grid gap-4 sm:grid-cols-2">
-            <div className="rounded-[1.5rem] border border-white/15 bg-white/10 p-5 backdrop-blur">
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-green-50/80">Step 1</p>
-              <p className="mt-2 text-lg font-semibold">Quick onboarding</p>
-              <p className="mt-2 text-sm text-green-50/80">
+          <div className="mt-8 sm:mt-10 grid gap-3 sm:gap-4 sm:grid-cols-2">
+            <div className="rounded-[1.25rem] sm:rounded-[1.5rem] border border-white/15 bg-white/10 p-4 sm:p-5 backdrop-blur">
+              <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.2em] sm:tracking-[0.24em] text-green-50/80">Step 1</p>
+              <p className="mt-2 text-base sm:text-lg font-semibold">Quick onboarding</p>
+              <p className="mt-2 text-xs sm:text-sm text-green-50/80">
                 Tell us if you have used AI before, which emails matter, and how you want help.
               </p>
             </div>
-            <div className="rounded-[1.5rem] border border-white/15 bg-white/10 p-5 backdrop-blur">
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-green-50/80">Step 2</p>
-              <p className="mt-2 text-lg font-semibold">Connect Gmail</p>
-              <p className="mt-2 text-sm text-green-50/80">
+            <div className="rounded-[1.25rem] sm:rounded-[1.5rem] border border-white/15 bg-white/10 p-4 sm:p-5 backdrop-blur">
+              <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.2em] sm:tracking-[0.24em] text-green-50/80">Step 2</p>
+              <p className="mt-2 text-base sm:text-lg font-semibold">Connect Gmail</p>
+              <p className="mt-2 text-xs sm:text-sm text-green-50/80">
                 Google OAuth starts right away once your setup is complete.
               </p>
             </div>
           </div>
         </div>
 
-        <div className="rounded-[2rem] border border-green-200 bg-white/85 p-8 shadow-xl shadow-green-100 backdrop-blur sm:p-10">
-          <div className="mb-8 text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-green-100 text-3xl text-green-700 shadow-inner shadow-green-200">
+        <div className="rounded-[1.5rem] sm:rounded-[2rem] border border-green-200 bg-white/85 p-6 sm:p-8 lg:p-10 shadow-xl shadow-green-100 backdrop-blur">
+          <div className="mb-6 sm:mb-8 text-center">
+            <div className="mx-auto mb-3 sm:mb-4 flex h-12 sm:h-16 w-12 sm:w-16 items-center justify-center rounded-2xl bg-green-100 text-2xl sm:text-3xl text-green-700 shadow-inner shadow-green-200">
               M
             </div>
-            <h2 className="text-3xl font-bold text-slate-900">
+            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">
               {mode === "signin" ? "Welcome back" : "Create your account"}
             </h2>
-            <p className="mt-2 text-slate-600">
+            <p className="mt-2 text-xs sm:text-sm text-slate-600">
               {mode === "signin"
                 ? "Sign in to start your mailturtle onboarding flow."
                 : "Create an account and save your login in the database."}
             </p>
           </div>
 
-          <div className="mb-6 grid grid-cols-2 rounded-full bg-green-100 p-1 text-sm font-semibold text-green-900">
+          <div className="mb-6 grid grid-cols-2 rounded-full bg-green-100 p-1 text-xs sm:text-sm font-semibold text-green-900">
             <button
               type="button"
               onClick={() => {
                 setMode("signin");
                 setError("");
               }}
-              className={`rounded-full px-4 py-2 transition ${
+              className={`rounded-full px-2 sm:px-4 py-1.5 sm:py-2 transition ${
                 mode === "signin" ? "bg-white shadow text-slate-900" : "text-green-800"
               }`}
             >
@@ -126,7 +135,7 @@ export default function LoginPage() {
                 setMode("signup");
                 setError("");
               }}
-              className={`rounded-full px-4 py-2 transition ${
+              className={`rounded-full px-2 sm:px-4 py-1.5 sm:py-2 transition ${
                 mode === "signup" ? "bg-white shadow text-slate-900" : "text-green-800"
               }`}
             >

@@ -7,7 +7,11 @@ import {
   removeSessionItem,
   setSessionItem,
 } from "@/lib/client-session";
-import { getFocusAreaPromptSummary, type OnboardingAnswers } from "@/lib/onboarding";
+import {
+  getFocusAreaPromptSummary,
+  getSelectedGmailLabels,
+  type OnboardingAnswers,
+} from "@/lib/onboarding";
 
 interface AuthResult {
   onboardingAnswers: OnboardingAnswers | null;
@@ -23,6 +27,7 @@ export interface Email {
   bodyHtml?: string;
   timestamp: Date;
   read: boolean;
+  gmailLabel?: string;
   category?: string;
   summary?: string;
   analyzed?: boolean;
@@ -44,6 +49,7 @@ interface GmailApiEmail {
   body: string;
   bodyHtml?: string;
   date: string;
+  gmailLabel?: string;
   category?: string;
   summary?: string;
   analyzed?: boolean;
@@ -98,6 +104,10 @@ const sampleEmails: Email[] = [
   },
 ];
 
+function dedupeEmailsById<T extends { id: string }>(items: T[]): T[] {
+  return Array.from(new Map(items.map((item) => [item.id, item])).values());
+}
+
 export function EmailProvider({ children }: { children: ReactNode }) {
   const [emails, setEmails] = useState<Email[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -122,7 +132,7 @@ export function EmailProvider({ children }: { children: ReactNode }) {
     }
 
     if (savedEmails) {
-      setEmails(JSON.parse(savedEmails));
+      setEmails(dedupeEmailsById(JSON.parse(savedEmails) as Email[]));
     }
 
     if (savedAnswers) {
@@ -150,8 +160,9 @@ export function EmailProvider({ children }: { children: ReactNode }) {
       removeSessionItem("onboardingAnswers");
     }
 
-    setEmails(sampleEmails);
-    setSessionItem("emails", JSON.stringify(sampleEmails));
+    const initialEmails = dedupeEmailsById(sampleEmails);
+    setEmails(initialEmails);
+    setSessionItem("emails", JSON.stringify(initialEmails));
   };
 
   const login = async (email: string, password: string) => {
@@ -216,15 +227,15 @@ export function EmailProvider({ children }: { children: ReactNode }) {
   };
 
   const markAsRead = (id: string) => {
-    const updated = emails.map((e) =>
+    const updated = dedupeEmailsById(emails.map((e) =>
       e.id === id ? { ...e, read: true } : e
-    );
+    ));
     setEmails(updated);
     setSessionItem("emails", JSON.stringify(updated));
   };
 
   const addEmail = (email: Email) => {
-    const updated = [email, ...emails];
+    const updated = dedupeEmailsById([email, ...emails]);
     setEmails(updated);
     setSessionItem("emails", JSON.stringify(updated));
   };
@@ -255,6 +266,65 @@ export function EmailProvider({ children }: { children: ReactNode }) {
     setSessionItem("emailConnectionProvider", provider);
   }, []);
 
+  const loadGmailEmails = useCallback(async (email: string, userEmailOverride?: string) => {
+    try {
+      console.log("[Providers] Loading Gmail emails for:", email);
+      
+      const resolvedUserEmail = userEmailOverride ?? user;
+      const labels = getSelectedGmailLabels(onboardingAnswers?.selectedFocusAreas ?? []);
+      const folderFetches = labels.map(async (label) => {
+        const searchParams = new URLSearchParams({
+          email,
+          label,
+        });
+
+        if (resolvedUserEmail) {
+          searchParams.set("userEmail", resolvedUserEmail);
+        }
+
+        const response = await fetch(`/api/gmail/messages?${searchParams.toString()}`);
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.warn(`[Providers] Failed to load ${label} folder: ${errorData.error || `Status ${response.status}`}`);
+          return [];
+        }
+
+        const data: GmailMessagesResponse = await response.json();
+        return data.emails || [];
+      });
+
+      const folderResults = await Promise.all(folderFetches);
+      const allEmails = folderResults.flat();
+      const uniqueEmails = Array.from(
+        new Map(allEmails.map((emailRecord) => [emailRecord.id, emailRecord])).values()
+      );
+
+      const gmailEmails: Email[] = uniqueEmails.map((emailRecord) => ({
+        ...emailRecord,
+        timestamp: new Date(emailRecord.date),
+        read: false,
+        bodyHtml: emailRecord.bodyHtml,
+        gmailLabel: emailRecord.gmailLabel,
+        category: emailRecord.category,
+        summary: emailRecord.summary,
+        analyzed: emailRecord.analyzed || false,
+        shouldNotify: emailRecord.shouldNotify,
+        matchReason: emailRecord.matchReason,
+      }));
+
+      // Sort by timestamp descending (newest first)
+      gmailEmails.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+      setEmails(gmailEmails);
+      setSessionItem("emails", JSON.stringify(gmailEmails));
+      console.log("[Providers] Successfully loaded", gmailEmails.length, "unique emails from Gmail across selected folders", labels);
+    } catch (error) {
+      console.error("[Providers] Error loading Gmail emails:", error);
+      // Keep sample emails if Gmail fetch fails
+    }
+  }, [onboardingAnswers?.selectedFocusAreas, user]);
+
   const saveConnectedAccount = useCallback((account: ConnectedAccount) => {
     setConnectedAccount((currentAccount) => {
       if (
@@ -273,43 +343,9 @@ export function EmailProvider({ children }: { children: ReactNode }) {
     
     // Load real emails from Gmail if provider is gmail
     if (account.provider === "gmail") {
-      void loadGmailEmails(account.email);
+      void loadGmailEmails(account.email, user ?? undefined);
     }
-  }, []);
-
-  const loadGmailEmails = async (email: string) => {
-    try {
-      console.log("[Providers] Loading Gmail emails for:", email);
-      const response = await fetch(`/api/gmail/messages?email=${encodeURIComponent(email)}`);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          `Failed to load Gmail emails: ${errorData.error || `Status ${response.status}`}`
-        );
-      }
-
-      const data: GmailMessagesResponse = await response.json();
-      const gmailEmails: Email[] = data.emails.map((emailRecord) => ({
-        ...emailRecord,
-        timestamp: new Date(emailRecord.date),
-        read: false,
-        bodyHtml: emailRecord.bodyHtml,
-        category: emailRecord.category,
-        summary: emailRecord.summary,
-        analyzed: emailRecord.analyzed || false,
-        shouldNotify: emailRecord.shouldNotify,
-        matchReason: emailRecord.matchReason,
-      }));
-
-      setEmails(gmailEmails);
-      setSessionItem("emails", JSON.stringify(gmailEmails));
-      console.log("[Providers] Successfully loaded", gmailEmails.length, "emails from Gmail");
-    } catch (error) {
-      console.error("[Providers] Error loading Gmail emails:", error);
-      // Keep sample emails if Gmail fetch fails
-    }
-  };
+  }, [loadGmailEmails, user]);
 
   const analyzeEmail = async (id: string) => {
     const email = emails.find((e) => e.id === id);
@@ -320,9 +356,11 @@ export function EmailProvider({ children }: { children: ReactNode }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          emailId: email.id,
           subject: email.subject,
           preview: email.preview,
           body: email.body,
+          userEmail: user,
           scanPreferences: onboardingAnswers
             ? {
                 aiExperience: onboardingAnswers.hasUsedAiBefore,
@@ -343,19 +381,19 @@ export function EmailProvider({ children }: { children: ReactNode }) {
 
       const { category, summary, shouldNotify, matchReason } = await response.json();
 
-      const updated = emails.map((e) =>
+      const updated = dedupeEmailsById(emails.map((e) =>
         e.id === id
           ? { ...e, category, summary, analyzed: true, shouldNotify, matchReason }
           : e
-      );
+      ));
       setEmails(updated);
       setSessionItem("emails", JSON.stringify(updated));
     } catch (error) {
       console.error("Error analyzing email:", error);
       // Mark as attempted to avoid retry spam
-      const updated = emails.map((e) =>
+      const updated = dedupeEmailsById(emails.map((e) =>
         e.id === id ? { ...e, analyzed: true } : e
-      );
+      ));
       setEmails(updated);
       setSessionItem("emails", JSON.stringify(updated));
     }
@@ -377,6 +415,7 @@ export function EmailProvider({ children }: { children: ReactNode }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           emails: payload,
+          userEmail: user,
           scanPreferences: onboardingAnswers
             ? {
                 aiExperience: onboardingAnswers.hasUsedAiBefore,
@@ -398,7 +437,7 @@ export function EmailProvider({ children }: { children: ReactNode }) {
       const results = await response.json();
 
       // Update all analyzed emails at once
-      const updated = emails.map((e) => {
+      const updated = dedupeEmailsById(emails.map((e) => {
         if (results[e.id]) {
           return {
             ...e,
@@ -410,18 +449,18 @@ export function EmailProvider({ children }: { children: ReactNode }) {
           };
         }
         return e;
-      });
+      }));
 
       setEmails(updated);
       setSessionItem("emails", JSON.stringify(updated));
     } catch (error) {
       console.error("Error in batch analysis:", error);
       // Mark all as attempted
-      const updated = emails.map((e) =>
+      const updated = dedupeEmailsById(emails.map((e) =>
         emailsToAnalyze.some((ta) => ta.id === e.id)
           ? { ...e, analyzed: true }
           : e
-      );
+      ));
       setEmails(updated);
       setSessionItem("emails", JSON.stringify(updated));
     }

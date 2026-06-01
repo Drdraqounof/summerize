@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
     console.log("[Google Callback] Stored access token for:", userInfo.email);
   }
 
-  const redirect = new URL("/connect", getAppUrl(request));
+  const redirect = new URL("/connect/complete", getAppUrl(request));
   redirect.searchParams.set("google", "connected");
   redirect.searchParams.set("provider", "gmail");
 

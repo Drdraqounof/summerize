@@ -25,6 +25,13 @@ export default function PWARegister() {
     // Only run in browser environment where navigator is available
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
 
+    // next-pwa does not reliably emit sw.js during local dev, so skip registration there.
+    if (process.env.NODE_ENV !== "production") {
+      console.info("[PWA] Skipping service worker registration outside production");
+      registrationAttempted.current = true;
+      return;
+    }
+
     const registerServiceWorker = async () => {
       try {
         // FAILSAFE #2: Don't register if user is offline

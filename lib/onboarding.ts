@@ -21,6 +21,8 @@ export interface FocusAreaOption {
   signals: string[];
 }
 
+export type GmailFolderLabel = "inbox" | "promotions" | "updates";
+
 interface FilterableEmail {
   body?: string;
   category?: string;
@@ -61,6 +63,13 @@ export const focusAreaOptions: FocusAreaOption[] = [
   },
 ];
 
+const focusAreaFolderMap: Record<string, GmailFolderLabel[]> = {
+  groceries: ["updates"],
+  work: ["inbox"],
+  events: ["updates"],
+  deals: ["promotions"],
+};
+
 export function mapUserPreferenceToOnboardingAnswers(
   preferences: OnboardingPreferenceSource | null | undefined,
 ): OnboardingAnswers | null {
@@ -99,6 +108,14 @@ export function getFocusAreaPromptSummary(selectedFocusAreas: string[]): string[
       (option) =>
         `${option.label}: look for ${option.signals.join(", ")}`,
     );
+}
+
+export function getSelectedGmailLabels(selectedFocusAreas: string[]): GmailFolderLabel[] {
+  const labels = selectedFocusAreas.flatMap(
+    (focusId) => focusAreaFolderMap[focusId] ?? []
+  );
+
+  return Array.from(new Set(labels.length > 0 ? labels : ["inbox"]));
 }
 
 export function matchesFocusArea(email: FilterableEmail, option: FocusAreaOption): boolean {

@@ -112,7 +112,7 @@ function getDefaultInboxFilter(
     return selectedFocusAreas[0];
   }
 
-  return "all";
+  return "matches";
 }
 
 export default function InboxPage() {
@@ -126,7 +126,7 @@ export default function InboxPage() {
     savedUser: null,
   });
   const [hasHydrated, setHasHydrated] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<InboxFilterValue>("all");
+  const [activeFilter, setActiveFilter] = useState<InboxFilterValue>("matches");
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "unsupported">(
     "unsupported"
   );
@@ -229,12 +229,11 @@ export default function InboxPage() {
     }
 
     if (selectedFocusAreas.length === 0) {
-      console.info("[Inbox filter] No saved focus areas found, defaulting to all emails");
+      console.info("[Inbox filter] No saved focus areas found, defaulting to matched emails");
     }
 
     setActiveFilter((currentFilter) => {
       const availableFilters = new Set<InboxFilterValue>([
-        "all",
         "matches",
         ...selectedFocusAreas,
       ]);
@@ -335,10 +334,6 @@ export default function InboxPage() {
   }, [emails, notificationFrequency]);
 
   const visibleEmails = emails.filter((email) => {
-    if (activeFilter === "all") {
-      return true;
-    }
-
     if (activeFilter === "matches") {
       return Boolean(email.shouldNotify);
     }
@@ -352,7 +347,7 @@ export default function InboxPage() {
   });
 
   useEffect(() => {
-    if (activeFilter !== "all" && visibleEmails.length === 0) {
+    if (visibleEmails.length === 0) {
       console.info("[Inbox filter] Active filter returned no emails", {
         activeFilter,
         totalEmails: emails.length,
@@ -394,12 +389,12 @@ export default function InboxPage() {
     <div className="flex-1 flex flex-col h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="text-2xl">📧</div>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">Email Checker</h1>
-              <p className="text-sm text-gray-600">{user}</p>
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="text-2xl shrink-0">📧</div>
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate">Email Checker</h1>
+              <p className="text-xs sm:text-sm text-gray-600 truncate">{user}</p>
               <p className="text-xs uppercase tracking-[0.2em] text-gray-500">
                 Connected: {connectionProvider ?? "Not selected"}
               </p>
@@ -408,18 +403,18 @@ export default function InboxPage() {
               ) : null}
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {notificationPermission === "default" ? (
               <button
                 onClick={requestNotificationPermission}
-                className="px-4 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg font-medium transition"
+                className="px-2 sm:px-4 py-2 text-xs sm:text-sm bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg font-medium transition whitespace-nowrap"
               >
-                Enable browser alerts
+                Enable alerts
               </button>
             ) : null}
             <button
               onClick={handleLogout}
-              className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg font-medium transition"
+              className="px-2 sm:px-4 py-2 text-xs sm:text-sm bg-red-100 hover:bg-red-200 text-red-700 rounded-lg font-medium transition"
             >
               Logout
             </button>
@@ -431,14 +426,14 @@ export default function InboxPage() {
       <div className="flex-1 flex overflow-hidden">
         {/* Email List */}
         <div
-          className={`w-full md:w-96 bg-white border-r border-gray-200 overflow-y-auto ${
+          className={`w-full md:w-80 lg:w-96 xl:w-[28rem] 2xl:w-[32rem] bg-white border-r border-gray-200 overflow-y-auto ${
             selectedEmailId && "hidden md:flex md:flex-col"
           }`}
         >
-          <div className="p-4 border-b border-gray-200">
+          <div className="p-3 sm:p-4 border-b border-gray-200">
             <h2 className="font-bold text-gray-900">Inbox</h2>
             <p className="text-sm text-gray-600">
-              {activeFilter === "all" ? emails.length : visibleEmails.length} emails
+              {visibleEmails.length} emails
             </p>
             <InboxFilterBar
               activeFilter={activeFilter}

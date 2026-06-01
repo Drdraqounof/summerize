@@ -49,6 +49,8 @@ npm install
 ```bash
 OPENAI_API_KEY=your_openai_api_key_here
 APP_URL=http://localhost:3001
+RESEND_API_KEY=your_resend_api_key_here
+RESEND_FROM_EMAIL=notifications@your-domain.com
 ```
 
 4. Run the development server:
@@ -109,6 +111,34 @@ Analyzes an email using AI and returns category and summary.
 {
   "category": "Work|Personal|Promotions|Alerts|Other",
   "summary": "Brief summary up to 100 characters"
+}
+```
+
+### GET `/api/notifications?email=you@example.com`
+
+Fetches the current notification settings for a user.
+
+### PATCH `/api/notifications`
+
+Updates the notification settings for a user.
+
+**Request:**
+```json
+{
+  "email": "you@example.com",
+  "notificationEnabled": true,
+  "notificationFrequency": "daily"
+}
+```
+
+### POST `/api/notifications/send-digest`
+
+Sends a Resend-backed digest for one user, or for all due users.
+
+**Request:**
+```json
+{
+  "email": "you@example.com"
 }
 ```
 
