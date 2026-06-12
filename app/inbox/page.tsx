@@ -404,6 +404,12 @@ export default function InboxPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              onClick={() => router.push("/spam")}
+              className="px-2 sm:px-4 py-2 text-xs sm:text-sm bg-orange-100 hover:bg-orange-200 text-orange-700 rounded-lg font-medium transition whitespace-nowrap"
+            >
+              Spam
+            </button>
             {notificationPermission === "default" ? (
               <button
                 onClick={requestNotificationPermission}

@@ -33,6 +33,7 @@ export interface Email {
   analyzed?: boolean;
   shouldNotify?: boolean;
   matchReason?: string;
+  isStarred?: boolean;
 }
 
 interface ConnectedAccount {
@@ -55,6 +56,7 @@ interface GmailApiEmail {
   analyzed?: boolean;
   shouldNotify?: boolean;
   matchReason?: string;
+  isStarred?: boolean;
 }
 
 interface GmailMessagesResponse {
@@ -63,6 +65,7 @@ interface GmailMessagesResponse {
 
 interface EmailContextType {
   emails: Email[];
+  spamEmails: Email[];
   isLoggedIn: boolean;
   user: string | null;
   onboardingAnswers: OnboardingAnswers | null;
@@ -79,6 +82,7 @@ interface EmailContextType {
   saveConnectionProvider: (provider: string) => void;
   saveConnectedAccount: (account: ConnectedAccount) => void;
   loadGmailEmails: (email: string) => Promise<void>;
+  loadSpamEmails: (email: string) => Promise<void>;
 }
 
 const EmailContext = createContext<EmailContextType | undefined>(undefined);
@@ -110,6 +114,7 @@ function dedupeEmailsById<T extends { id: string }>(items: T[]): T[] {
 
 export function EmailProvider({ children }: { children: ReactNode }) {
   const [emails, setEmails] = useState<Email[]>([]);
+  const [spamEmails, setSpamEmails] = useState<Email[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<string | null>(null);
   const [onboardingAnswers, setOnboardingAnswers] = useState<OnboardingAnswers | null>(null);
@@ -232,6 +237,11 @@ export function EmailProvider({ children }: { children: ReactNode }) {
     ));
     setEmails(updated);
     setSessionItem("emails", JSON.stringify(updated));
+
+    const updatedSpam = dedupeEmailsById(spamEmails.map((e) =>
+      e.id === id ? { ...e, read: true } : e
+    ));
+    setSpamEmails(updatedSpam);
   };
 
   const addEmail = (email: Email) => {
@@ -311,10 +321,15 @@ export function EmailProvider({ children }: { children: ReactNode }) {
         analyzed: emailRecord.analyzed || false,
         shouldNotify: emailRecord.shouldNotify,
         matchReason: emailRecord.matchReason,
+        isStarred: emailRecord.isStarred,
       }));
 
-      // Sort by timestamp descending (newest first)
-      gmailEmails.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      // Sort starred first, then by timestamp descending
+      gmailEmails.sort((a, b) => {
+        if (a.isStarred && !b.isStarred) return -1;
+        if (!a.isStarred && b.isStarred) return 1;
+        return b.timestamp.getTime() - a.timestamp.getTime();
+      });
 
       setEmails(gmailEmails);
       setSessionItem("emails", JSON.stringify(gmailEmails));
@@ -324,6 +339,58 @@ export function EmailProvider({ children }: { children: ReactNode }) {
       // Keep sample emails if Gmail fetch fails
     }
   }, [onboardingAnswers?.selectedFocusAreas, user]);
+
+  const loadSpamEmails = useCallback(async (email: string) => {
+    try {
+      const resolvedUserEmail = user;
+      const spamLabels = ["spam", "trash"];
+      const folderFetches = spamLabels.map(async (label) => {
+        const searchParams = new URLSearchParams({ email, label });
+        if (resolvedUserEmail) {
+          searchParams.set("userEmail", resolvedUserEmail);
+        }
+        const response = await fetch(`/api/gmail/messages?${searchParams.toString()}`);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.warn(`[Providers] Failed to load ${label} folder: ${errorData.error || `Status ${response.status}`}`);
+          return [];
+        }
+        const data: GmailMessagesResponse = await response.json();
+        return data.emails || [];
+      });
+
+      const folderResults = await Promise.all(folderFetches);
+      const allEmails = folderResults.flat();
+      const uniqueEmails = Array.from(
+        new Map(allEmails.map((record) => [record.id, record])).values()
+      );
+
+      const gmailEmails: Email[] = uniqueEmails.map((record) => ({
+        ...record,
+        timestamp: new Date(record.date),
+        read: false,
+        bodyHtml: record.bodyHtml,
+        gmailLabel: record.gmailLabel,
+        category: record.category,
+        summary: record.summary,
+        analyzed: record.analyzed || false,
+        shouldNotify: record.shouldNotify,
+        matchReason: record.matchReason,
+        isStarred: record.isStarred,
+      }));
+
+      // Sort starred first, then by timestamp descending
+      gmailEmails.sort((a, b) => {
+        if (a.isStarred && !b.isStarred) return -1;
+        if (!a.isStarred && b.isStarred) return 1;
+        return b.timestamp.getTime() - a.timestamp.getTime();
+      });
+      setSpamEmails(gmailEmails);
+      console.log("[Providers] Successfully loaded", gmailEmails.length, "spam/trash emails");
+    } catch (error) {
+      console.error("[Providers] Error loading spam emails:", error);
+    }
+  }, [user]);
 
   const saveConnectedAccount = useCallback((account: ConnectedAccount) => {
     setConnectedAccount((currentAccount) => {
@@ -344,8 +411,9 @@ export function EmailProvider({ children }: { children: ReactNode }) {
     // Load real emails from Gmail if provider is gmail
     if (account.provider === "gmail") {
       void loadGmailEmails(account.email, user ?? undefined);
+      void loadSpamEmails(account.email);
     }
-  }, [loadGmailEmails, user]);
+  }, [loadGmailEmails, loadSpamEmails, user]);
 
   const analyzeEmail = async (id: string) => {
     const email = emails.find((e) => e.id === id);
@@ -379,15 +447,22 @@ export function EmailProvider({ children }: { children: ReactNode }) {
         );
       }
 
-      const { category, summary, shouldNotify, matchReason } = await response.json();
+      const { category, summary, shouldNotify, matchReason, isStarred } = await response.json();
 
       const updated = dedupeEmailsById(emails.map((e) =>
         e.id === id
-          ? { ...e, category, summary, analyzed: true, shouldNotify, matchReason }
+          ? { ...e, category, summary, analyzed: true, shouldNotify, matchReason, isStarred }
           : e
       ));
       setEmails(updated);
       setSessionItem("emails", JSON.stringify(updated));
+
+      const updatedSpam = dedupeEmailsById(spamEmails.map((e) =>
+        e.id === id
+          ? { ...e, category, summary, analyzed: true, shouldNotify, matchReason, isStarred }
+          : e
+      ));
+      setSpamEmails(updatedSpam);
     } catch (error) {
       console.error("Error analyzing email:", error);
       // Mark as attempted to avoid retry spam
@@ -396,6 +471,11 @@ export function EmailProvider({ children }: { children: ReactNode }) {
       ));
       setEmails(updated);
       setSessionItem("emails", JSON.stringify(updated));
+
+      const updatedSpam = dedupeEmailsById(spamEmails.map((e) =>
+        e.id === id ? { ...e, analyzed: true } : e
+      ));
+      setSpamEmails(updatedSpam);
     }
   };
 
@@ -446,6 +526,7 @@ export function EmailProvider({ children }: { children: ReactNode }) {
             analyzed: true,
             shouldNotify: results[e.id].shouldNotify,
             matchReason: results[e.id].matchReason,
+            isStarred: results[e.id].isStarred,
           };
         }
         return e;
@@ -453,6 +534,23 @@ export function EmailProvider({ children }: { children: ReactNode }) {
 
       setEmails(updated);
       setSessionItem("emails", JSON.stringify(updated));
+
+      // Also update spamEmails if any analyzed emails belong there
+      const updatedSpam = dedupeEmailsById(spamEmails.map((e) => {
+        if (results[e.id]) {
+          return {
+            ...e,
+            category: results[e.id].category,
+            summary: results[e.id].summary,
+            analyzed: true,
+            shouldNotify: results[e.id].shouldNotify,
+            matchReason: results[e.id].matchReason,
+            isStarred: results[e.id].isStarred,
+          };
+        }
+        return e;
+      }));
+      setSpamEmails(updatedSpam);
     } catch (error) {
       console.error("Error in batch analysis:", error);
       // Mark all as attempted
@@ -470,6 +568,7 @@ export function EmailProvider({ children }: { children: ReactNode }) {
     <EmailContext.Provider
       value={{
         emails,
+        spamEmails,
         isLoggedIn,
         user,
         onboardingAnswers,
@@ -486,6 +585,7 @@ export function EmailProvider({ children }: { children: ReactNode }) {
         saveConnectionProvider,
         saveConnectedAccount,
         loadGmailEmails,
+        loadSpamEmails,
       }}
     >
       {children}

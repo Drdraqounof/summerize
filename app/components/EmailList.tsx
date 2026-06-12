@@ -72,7 +72,7 @@ export default function EmailList({
         >
           <div className="flex items-start gap-2">
             <span className={`text-lg ${email.read ? "opacity-50" : ""}`}>
-              {email.read ? "📖" : "📬"}
+              {email.isStarred ? "⭐" : email.read ? "📖" : "📬"}
             </span>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1 sm:gap-2 mb-1 flex-wrap">

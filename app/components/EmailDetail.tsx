@@ -30,7 +30,10 @@ export default function EmailDetail({ assistantStyle, email }: EmailDetailProps)
   return (
     <div className="bg-white">
       <div className="p-4 sm:p-6 border-b border-gray-200">
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 break-words">{email.subject}</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 break-words">
+          {email.isStarred ? <span className="inline-block mr-2">⭐</span> : null}
+          {email.subject}
+        </h2>
 
         {email.shouldNotify ? (
           <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">

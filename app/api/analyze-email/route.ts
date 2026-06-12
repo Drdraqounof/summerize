@@ -11,13 +11,14 @@ const openai = new OpenAI({
 });
 
 // In-memory cache for analyzed emails
-const analysisCache = new Map<string, { category: string; summary: string; shouldNotify: boolean; matchReason: string }>();
+const analysisCache = new Map<string, { category: string; summary: string; shouldNotify: boolean; matchReason: string; isStarred: boolean }>();
 
 interface AnalysisResult {
   category: string;
   summary: string;
   shouldNotify: boolean;
   matchReason: string;
+  isStarred: boolean;
 }
 
 interface ScanPreferences {
@@ -161,26 +162,27 @@ async function batchAnalyzeEmails(
 
           const response = await openai.chat.completions.create({
             model: "gpt-4o-mini",
-            messages: [
-              {
-                role: "system",
-                content: `Analyze email and respond with ONLY valid JSON:
+              messages: [
+                {
+                  role: "system",
+                  content: `Analyze email and respond with ONLY valid JSON:
 {
   "category": "Work|Personal|Promotions|Alerts|Other",
   "summary": "brief summary max 100 chars",
   "shouldNotify": true,
-  "matchReason": "short reason why this matches the user's watchlist, or 'General inbox item'"
+  "matchReason": "short reason why this matches the user's watchlist, or 'General inbox item'",
+  "isStarred": true
 }
 
-Use shouldNotify=true only when the email clearly matches the user's watchlist or stated goal.
+Star exactly ONE email per batch as the most important email in that folder (set isStarred=true). Use shouldNotify=true only when the email clearly matches the user's watchlist or stated goal.
 User watchlist:
 ${promptContext}`,
-              },
-              {
-                role: "user",
-                content: emailContent,
-              },
-            ],
+                },
+                {
+                  role: "user",
+                  content: emailContent,
+                },
+              ],
             temperature: 0.2,
             max_tokens: 220,
           });
@@ -199,6 +201,7 @@ ${promptContext}`,
             summary: "Analysis failed",
             shouldNotify: false,
             matchReason: "General inbox item",
+            isStarred: false,
           };
         }
       })
@@ -242,9 +245,11 @@ async function persistAnalysisResult(userId: string, gmailId: string, result: An
     matchReason?: string;
     shouldNotify?: boolean;
     summary: string;
+    isStarred?: boolean;
   } = {
     summary: result.summary,
     analyzedAt: new Date(),
+    isStarred: result.isStarred,
     category: result.category
       ? {
           upsert: {
@@ -345,26 +350,27 @@ export async function POST(request: NextRequest) {
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: `Analyze email and respond with ONLY valid JSON:
+          messages: [
+            {
+              role: "system",
+              content: `Analyze email and respond with ONLY valid JSON:
 {
   "category": "Work|Personal|Promotions|Alerts|Other",
   "summary": "brief summary max 100 chars",
   "shouldNotify": true,
-  "matchReason": "short reason why this matches the user's watchlist, or 'General inbox item'"
+  "matchReason": "short reason why this matches the user's watchlist, or 'General inbox item'",
+  "isStarred": true
 }
 
-Use shouldNotify=true only when the email clearly matches the user's watchlist or stated goal.
+Set isStarred=true if this is the most important email in the batch. Use shouldNotify=true only when the email clearly matches the user's watchlist or stated goal.
 User watchlist:
 ${promptContext}`,
-          },
-          {
-            role: "user",
-            content: emailContent,
-          },
-        ],
+            },
+            {
+              role: "user",
+              content: emailContent,
+            },
+          ],
         temperature: 0.2,
         max_tokens: 220,
       });
@@ -382,6 +388,7 @@ ${promptContext}`,
           summary: result.summary,
           shouldNotify: Boolean(result.shouldNotify),
           matchReason: result.matchReason || "General inbox item",
+          isStarred: Boolean(result.isStarred),
         });
       }
 
@@ -390,6 +397,7 @@ ${promptContext}`,
         summary: result.summary,
         shouldNotify: Boolean(result.shouldNotify),
         matchReason: result.matchReason || "General inbox item",
+        isStarred: Boolean(result.isStarred),
       });
     }
   } catch (error) {

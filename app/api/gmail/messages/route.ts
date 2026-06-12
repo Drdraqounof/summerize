@@ -53,10 +53,10 @@ export async function GET(request: NextRequest) {
     const label = request.nextUrl.searchParams.get("label") || "inbox";
     
     // Validate label to prevent injection attacks
-    const validLabels = ["inbox", "spam", "promotions", "updates"];
+    const validLabels = ["inbox", "spam", "promotions", "updates", "trash"];
     if (!validLabels.includes(label)) {
       return NextResponse.json(
-        { error: "Invalid label. Allowed: inbox, spam, promotions, updates" },
+        { error: "Invalid label. Allowed: inbox, spam, promotions, updates, trash" },
         { status: 400 }
       );
     }
@@ -89,6 +89,8 @@ export async function GET(request: NextRequest) {
       switch (label) {
         case "spam":
           return "is:spam";
+        case "trash":
+          return "in:trash";
         case "promotions":
           return "category:promotions";
         case "updates":
