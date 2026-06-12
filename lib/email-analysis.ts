@@ -149,6 +149,7 @@ ${promptContext}`,
     );
   }
 
+  console.log(`[Email Analysis] OpenAI batch results: ${Object.keys(results).length}/${emails.length} emails analyzed`);
   return results;
 }
 
@@ -196,18 +197,31 @@ export async function analyzeUnanalyzedEmails(
   const whereClause: Record<string, unknown> = { userId, analyzedAt: null };
   if (since) whereClause.receivedAt = { gte: since };
 
+  const allUnanalyzed = await prisma.email.count({
+    where: { userId, analyzedAt: null },
+  });
+  console.log(`[Email Analysis] Total unanalyzed emails for user: ${allUnanalyzed}`);
+
   const unanalyzed = await prisma.email.findMany({
     where: whereClause,
     select: { id: true, gmailId: true, subject: true, body: true },
   });
 
-  if (unanalyzed.length === 0) return 0;
+  if (unanalyzed.length === 0) {
+    console.log(`[Email Analysis] No unanalyzed emails found in period window`);
+    return 0;
+  }
+  console.log(`[Email Analysis] Found ${unanalyzed.length} unanalyzed emails in period`);
 
   const analysisInput = unanalyzed
     .filter((e: { gmailId?: string | null; subject?: string | null; body?: string | null }) => e.gmailId && e.subject && e.body)
     .map((e: { gmailId: string; subject: string; body: string }) => ({ id: e.gmailId, subject: e.subject, body: e.body }));
 
-  if (analysisInput.length === 0) return 0;
+  if (analysisInput.length === 0) {
+    console.log(`[Email Analysis] All ${unanalyzed.length} unanalyzed emails filtered out (missing gmailId/subject/body)`);
+    return 0;
+  }
+  console.log(`[Email Analysis] Sending ${analysisInput.length} emails to OpenAI`);
 
   const results = await batchAnalyzeEmails(analysisInput, scanPreferences);
 
@@ -219,6 +233,11 @@ export async function analyzeUnanalyzedEmails(
     }),
   );
 
-  console.log(`[Email Analysis] Analyzed ${analyzed} emails`);
+  console.log(`[Email Analysis] Analyzed ${analyzed} emails (attempted ${analysisInput.length})`);
+  // Log how many categorized vs uncategorized remain
+  const total = await prisma.email.count({ where: { userId } });
+  const categorized = await prisma.email.count({ where: { userId, category: { isNot: null } } });
+  const stillNull = await prisma.email.count({ where: { userId, analyzedAt: null } });
+  console.log(`[Email Analysis] DB totals - total: ${total}, categorized: ${categorized}, unanalyzed: ${stillNull}`);
   return analyzed;
 }

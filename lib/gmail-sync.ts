@@ -222,7 +222,7 @@ export async function syncGmailLabel(
         cc: getHeader("Cc") || null,
         preview: getPreview(extracted),
         body: extracted.textBody,
-        receivedAt: new Date(parseInt(msg.internalDate)),
+        receivedAt: msg.internalDate ? new Date(parseInt(msg.internalDate)) : new Date(),
         gmailLabel: label,
       };
 

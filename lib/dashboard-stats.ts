@@ -54,21 +54,21 @@ export async function getDashboardStats(
     dailyData,
   ] = await Promise.all([
     prisma.email.count({
-      where: { userId, analyzedAt: { gte: periodStart } },
+      where: { userId, receivedAt: { gte: periodStart } },
     }),
     prisma.email.count({
-      where: { userId, isFlagged: true, analyzedAt: { gte: periodStart } },
+      where: { userId, isFlagged: true, receivedAt: { gte: periodStart } },
     }),
     prisma.emailCategoryRecord.findMany({
       where: {
-        email: { userId, analyzedAt: { gte: periodStart } },
+        email: { userId, receivedAt: { gte: periodStart } },
       },
       select: { category: true },
     }),
     prisma.email.count({
       where: {
         userId,
-        analyzedAt: { gte: periodStart },
+        receivedAt: { gte: periodStart },
         category: { isNot: null },
       },
     }),
@@ -94,9 +94,9 @@ export async function getDashboardStats(
     }),
     // Daily volume for trend chart
     prisma.email.findMany({
-      where: { userId, analyzedAt: { gte: periodStart } },
-      select: { analyzedAt: true },
-      orderBy: { analyzedAt: "asc" },
+      where: { userId, receivedAt: { gte: periodStart } },
+      select: { receivedAt: true },
+      orderBy: { receivedAt: "asc" },
     }),
   ]);
 
@@ -118,7 +118,7 @@ export async function getDashboardStats(
       where: {
         userId,
         matchReason: { contains: topRuleData.name, mode: "insensitive" },
-        analyzedAt: { gte: periodStart },
+        receivedAt: { gte: periodStart },
       },
     });
     if (matchCount > 0) {
@@ -136,8 +136,8 @@ export async function getDashboardStats(
 
   const dailyVolumeMap = new Map<string, number>();
   for (const email of dailyData) {
-    if (email.analyzedAt) {
-      const dateKey = email.analyzedAt.toISOString().slice(0, 10);
+    if (email.receivedAt) {
+      const dateKey = email.receivedAt.toISOString().slice(0, 10);
       dailyVolumeMap.set(dateKey, (dailyVolumeMap.get(dateKey) || 0) + 1);
     }
   }

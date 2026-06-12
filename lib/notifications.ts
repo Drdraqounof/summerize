@@ -406,7 +406,7 @@ export async function sendDueDigests() {
   });
 
   const results = await Promise.all(
-    users.map(async (user) => ({
+    users.map(async (user: { email: string }) => ({
       email: user.email,
       result: await sendDigestForUser(user.email),
     })),

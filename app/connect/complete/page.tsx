@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { getSessionItem } from "@/lib/client-session";
 import { useEmail } from "@/app/providers";
 
@@ -19,6 +19,14 @@ const loadingSteps = [
 ];
 
 export default function ConnectCompletePage() {
+  return (
+    <Suspense fallback={null}>
+      <ConnectCompleteContent />
+    </Suspense>
+  );
+}
+
+function ConnectCompleteContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isLoggedIn, onboardingAnswers, saveConnectedAccount } = useEmail();
