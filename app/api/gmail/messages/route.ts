@@ -5,6 +5,7 @@ import {
 } from "@/lib/email-schema";
 import { prisma } from "@/lib/prisma";
 import { getToken } from "@/lib/tokenStore";
+import { syncGmailLabel, type SyncLabel } from "@/lib/gmail-sync";
 
 const GMAIL_API_URL = "https://www.googleapis.com/gmail/v1/users/me";
 
@@ -45,22 +46,23 @@ interface ExtractedEmailContent {
   textBody: string;
 }
 
+const validLabels: SyncLabel[] = ["inbox", "spam", "promotions", "updates", "trash"];
+
 export async function GET(request: NextRequest) {
   try {
-    // Get the user email from query params or headers
     const email = request.nextUrl.searchParams.get("email");
     const userEmail = request.nextUrl.searchParams.get("userEmail")?.trim().toLowerCase();
-    const label = request.nextUrl.searchParams.get("label") || "inbox";
-    
-    // Validate label to prevent injection attacks
-    const validLabels = ["inbox", "spam", "promotions", "updates", "trash"];
+    const label = (request.nextUrl.searchParams.get("label") || "inbox") as SyncLabel;
+    const sinceParam = request.nextUrl.searchParams.get("since");
+    const maxResultsParam = request.nextUrl.searchParams.get("maxResults");
+
     if (!validLabels.includes(label)) {
       return NextResponse.json(
         { error: "Invalid label. Allowed: inbox, spam, promotions, updates, trash" },
         { status: 400 }
       );
     }
-    
+
     if (!email) {
       return NextResponse.json(
         { error: "Email parameter is required" },
@@ -75,7 +77,6 @@ export async function GET(request: NextRequest) {
         })
       : null;
 
-    // Retrieve the stored access token
     const accessToken = getToken(email);
     if (!accessToken) {
       return NextResponse.json(
@@ -84,26 +85,67 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch the list of messages from Gmail
+    // When since is provided, use paginated sync for date-range fetching
+    if (sinceParam) {
+      const since = new Date(sinceParam);
+      const maxResults = maxResultsParam ? parseInt(maxResultsParam, 10) : 500;
+
+      if (user) {
+        const result = await syncGmailLabel(accessToken, email, user.id, label, since, maxResults);
+
+        // Return the synced emails from the database
+        const dbEmails = await prisma.email.findMany({
+          where: { userId: user.id, gmailLabel: label, receivedAt: { gte: since } },
+          orderBy: { receivedAt: "desc" },
+          take: maxResults,
+          select: {
+            gmailId: true,
+            from: true,
+            subject: true,
+            preview: true,
+            body: true,
+            receivedAt: true,
+            summary: true,
+            analyzedAt: true,
+            gmailLabel: true,
+            category: { select: { category: true } },
+          },
+        });
+
+        return NextResponse.json({
+          emails: dbEmails.map((e: { gmailId: string | null; from: string; subject: string; preview: string | null; body: string | null; receivedAt: Date; summary: string | null; analyzedAt: Date | null; gmailLabel: string; category: { category: string } | null }) => ({
+            id: e.gmailId,
+            accountEmail: email,
+            from: e.from,
+            subject: e.subject,
+            preview: e.preview,
+            date: e.receivedAt.toISOString(),
+            category: e.category?.category,
+            summary: e.summary ?? undefined,
+            analyzed: Boolean(e.analyzedAt),
+            gmailLabel: e.gmailLabel,
+          })),
+          total: dbEmails.length,
+          truncated: result.truncated,
+        });
+      }
+
+      return NextResponse.json({ emails: [], total: 0 });
+    }
+
+    // Legacy 20-message fetch (keep existing behavior)
     const labelQuery = (() => {
       switch (label) {
-        case "spam":
-          return "is:spam";
-        case "trash":
-          return "in:trash";
-        case "promotions":
-          return "category:promotions";
-        case "updates":
-          return "category:updates";
-        default:
-          return "in:inbox";
+        case "spam": return "is:spam";
+        case "trash": return "in:trash";
+        case "promotions": return "category:promotions";
+        case "updates": return "category:updates";
+        default: return "in:inbox";
       }
     })();
 
     const messagesResponse = await fetch(`${GMAIL_API_URL}/messages?maxResults=20&q=${encodeURIComponent(labelQuery)}`, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
+      headers: { Authorization: `Bearer ${accessToken}` },
       cache: "no-store",
     });
 
@@ -130,18 +172,12 @@ export async function GET(request: NextRequest) {
 
     if (!messagesData.messages || messagesData.messages.length === 0) {
       console.log("[Gmail API] No messages found in inbox");
-      return NextResponse.json({
-        emails: [],
-        total: 0,
-      });
+      return NextResponse.json({ emails: [], total: 0 });
     }
 
-    // Fetch full details for each message
     const emailPromises = messagesData.messages.map((msg) =>
       fetch(`${GMAIL_API_URL}/messages/${msg.id}?format=full`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { Authorization: `Bearer ${accessToken}` },
         cache: "no-store",
       })
         .then((res) => res.json())
@@ -153,7 +189,6 @@ export async function GET(request: NextRequest) {
 
     const messageDetails = await Promise.all(emailPromises);
 
-    // Transform Gmail messages into our Email format
     const transformedEmails = messageDetails
       .filter((msg): msg is GmailMessage => msg !== null)
       .map((msg) => {
@@ -227,15 +262,10 @@ export async function GET(request: NextRequest) {
                   summary: true,
                   analyzedAt: true,
                   ...(supportsNotificationPersistence
-                    ? {
-                        shouldNotify: true,
-                        matchReason: true,
-                      }
+                    ? { shouldNotify: true, matchReason: true }
                     : {}),
                   category: {
-                    select: {
-                      category: true,
-                    },
+                    select: { category: true },
                   },
                 },
               });
@@ -271,12 +301,11 @@ export async function GET(request: NextRequest) {
                   preview: emailRecord.preview,
                   body: emailRecord.body,
                   bodyHtml: emailRecord.bodyHtml,
-                  date: emailRecord.receivedAt.toISOString(),
+                  date: emailRecord.receivedAt?.toISOString() ?? new Date(0).toISOString(),
                   gmailLabel: emailRecord.gmailLabel,
                   analyzed: false,
                 };
               }
-
               throw error;
             }
           })
@@ -295,11 +324,7 @@ export async function GET(request: NextRequest) {
         }));
 
     console.log("[Gmail API] Successfully fetched", emails.length, "emails for", email);
-
-    return NextResponse.json({
-      emails,
-      total: messagesData.resultSizeEstimate || emails.length,
-    });
+    return NextResponse.json({ emails, total: messagesData.resultSizeEstimate || emails.length });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("[Gmail API] Fetch error:", errorMessage, error);
@@ -310,9 +335,10 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/**
- * Extract plain text, HTML, and inline-image metadata from a Gmail payload.
- */
+// ---------------------------------------------------------------------------
+// Inline utility functions (kept to maintain backward compatibility)
+// ---------------------------------------------------------------------------
+
 function extractEmailContent({
   accountEmail,
   messageId,
@@ -323,31 +349,16 @@ function extractEmailContent({
   payload?: GmailPart;
 }): ExtractedEmailContent {
   if (!payload) {
-    return {
-      htmlBody: "",
-      inlineAttachments: [],
-      textBody: "",
-    };
+    return { htmlBody: "", inlineAttachments: [], textBody: "" };
   }
-
   const textParts: string[] = [];
   const htmlParts: string[] = [];
   const inlineAttachments: InlineAttachment[] = [];
-
   const visitPart = (part?: GmailPart) => {
-    if (!part) {
-      return;
-    }
-
+    if (!part) return;
     const decodedBody = decodeBody(part.body?.data);
-    if (part.mimeType === "text/plain" && decodedBody.trim()) {
-      textParts.push(decodedBody);
-    }
-
-    if (part.mimeType === "text/html" && decodedBody.trim()) {
-      htmlParts.push(decodedBody);
-    }
-
+    if (part.mimeType === "text/plain" && decodedBody.trim()) textParts.push(decodedBody);
+    if (part.mimeType === "text/html" && decodedBody.trim()) htmlParts.push(decodedBody);
     const cid = getHeaderValue(part.headers, "Content-ID");
     if (cid && part.body?.attachmentId && part.mimeType?.startsWith("image/")) {
       inlineAttachments.push({
@@ -356,66 +367,42 @@ function extractEmailContent({
         mimeType: part.mimeType,
       });
     }
-
     part.parts?.forEach(visitPart);
   };
-
   visitPart(payload);
-
   const fallbackBody = decodeBody(payload.body?.data);
   const textBody = textParts.join("\n\n").trim() || stripHtml(htmlParts.join("\n\n")).trim() || stripHtml(fallbackBody).trim();
   const rawHtml = htmlParts.join("\n\n").trim() || (looksLikeHtml(fallbackBody) ? fallbackBody : "");
-
   return {
-    htmlBody: sanitizeEmailHtml(rawHtml, inlineAttachments, {
-      accountEmail,
-      messageId,
-    }),
+    htmlBody: sanitizeEmailHtml(rawHtml, inlineAttachments, { accountEmail, messageId }),
     inlineAttachments,
     textBody,
   };
 }
 
 function getPreview(content: ExtractedEmailContent): string {
-  if (content.textBody) {
-    return content.textBody.substring(0, 200);
-  }
-
+  if (content.textBody) return content.textBody.substring(0, 200);
   return stripHtml(content.htmlBody).substring(0, 200);
 }
 
 function decodeBody(data?: string): string {
-  if (!data) {
-    return "";
-  }
-
+  if (!data) return "";
   const normalized = data.replace(/-/g, "+").replace(/_/g, "/");
   return Buffer.from(normalized, "base64").toString("utf-8");
 }
 
 function getHeaderValue(headers: GmailHeader[] = [], name: string): string {
-  return headers.find((header) => header.name.toLowerCase() === name.toLowerCase())?.value || "";
+  return headers.find((h) => h.name.toLowerCase() === name.toLowerCase())?.value || "";
 }
 
 function formatSender(fromHeader: string): string {
   const normalized = fromHeader.replace(/\s+/g, " ").trim();
-
-  if (!normalized) {
-    return "Unknown";
-  }
-
+  if (!normalized) return "Unknown";
   const senderMatch = normalized.match(/^(?:"?([^"<]+?)"?\s*)?<([^>]+)>$/);
-  if (!senderMatch) {
-    return normalized.replace(/^<|>$/g, "").replace(/^"+|"+$/g, "").trim();
-  }
-
+  if (!senderMatch) return normalized.replace(/^<|>$/g, "").replace(/^"+|"+$/g, "").trim();
   const displayName = senderMatch[1]?.trim().replace(/^"+|"+$/g, "");
   const email = senderMatch[2]?.trim();
-
-  if (displayName && displayName.toLowerCase() !== email.toLowerCase()) {
-    return displayName;
-  }
-
+  if (displayName && displayName.toLowerCase() !== email.toLowerCase()) return displayName;
   return email;
 }
 
@@ -436,35 +423,16 @@ function looksLikeHtml(value: string): boolean {
 function sanitizeEmailHtml(
   html: string,
   inlineAttachments: InlineAttachment[],
-  context: {
-    accountEmail: string;
-    messageId: string;
-  },
+  context: { accountEmail: string; messageId: string },
 ): string {
-  if (!html) {
-    return "";
-  }
-
-  const inlineMap = new Map(
-    inlineAttachments.map((attachment) => [attachment.cid.toLowerCase(), attachment]),
-  );
-
+  if (!html) return "";
+  const inlineMap = new Map(inlineAttachments.map((a) => [a.cid.toLowerCase(), a]));
   const rewrittenHtml = html.replace(/src=(['"])cid:([^'"]+)\1/gi, (_match, quote, cid) => {
     const normalizedCid = String(cid).trim().replace(/[<>]/g, "").toLowerCase();
     const attachment = inlineMap.get(normalizedCid);
-
-    if (!attachment) {
-      return `src=${quote}${""}${quote}`;
-    }
-
-    return `src=${quote}${buildInlineImageUrl({
-      accountEmail: context.accountEmail,
-      attachmentId: attachment.attachmentId,
-      mimeType: attachment.mimeType,
-      messageId: context.messageId,
-    })}${quote}`;
+    if (!attachment) return `src=${quote}${""}${quote}`;
+    return `src=${quote}${buildInlineImageUrl({ accountEmail: context.accountEmail, attachmentId: attachment.attachmentId, mimeType: attachment.mimeType, messageId: context.messageId })}${quote}`;
   });
-
   return basicSanitizeHtml(rewrittenHtml);
 }
 
@@ -477,31 +445,12 @@ function basicSanitizeHtml(html: string): string {
     .replace(/\s+src\s*=\s*(["'])\s*javascript:[\s\S]*?\1/gi, ' src=""')
     .replace(/\s+href\s*=\s*(["'])\s*javascript:[\s\S]*?\1/gi, ' href="#"')
     .replace(/<a\b([^>]*)>/gi, (_match, attrs) => {
-      const safeAttrs = attrs
-        .replace(/\s+target\s*=\s*(["']).*?\1/gi, "")
-        .replace(/\s+rel\s*=\s*(["']).*?\1/gi, "");
-
+      const safeAttrs = attrs.replace(/\s+target\s*=\s*(["']).*?\1/gi, "").replace(/\s+rel\s*=\s*(["']).*?\1/gi, "");
       return `<a${safeAttrs} target="_blank" rel="noopener noreferrer">`;
     });
 }
 
-function buildInlineImageUrl({
-  accountEmail,
-  attachmentId,
-  mimeType,
-  messageId,
-}: {
-  accountEmail: string;
-  attachmentId: string;
-  mimeType: string;
-  messageId: string;
-}): string {
-  const params = new URLSearchParams({
-    attachmentId,
-    email: accountEmail,
-    messageId,
-    mimeType,
-  });
-
+function buildInlineImageUrl({ accountEmail, attachmentId, mimeType, messageId }: { accountEmail: string; attachmentId: string; mimeType: string; messageId: string }): string {
+  const params = new URLSearchParams({ attachmentId, email: accountEmail, messageId, mimeType });
   return `/api/gmail/attachments?${params.toString()}`;
 }

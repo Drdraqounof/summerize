@@ -64,7 +64,21 @@ function getSenderEmail() {
     throw new Error("RESEND_FROM_EMAIL is not configured.");
   }
 
-  return fromAddress;
+  return `Mail Turtle <${fromAddress}>`;
+}
+
+export async function sendEmail(input: {
+  to: string;
+  subject: string;
+  html: string;
+}) {
+  const resend = getResendClient();
+  await resend.emails.send({
+    from: getSenderEmail(),
+    to: input.to,
+    subject: input.subject,
+    html: input.html,
+  });
 }
 
 export function normalizeNotificationFrequency(value?: string | null): NotificationFrequency | null {

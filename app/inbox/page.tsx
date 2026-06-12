@@ -105,14 +105,14 @@ function getDefaultInboxFilter(
   selectedFocusAreas: string[],
 ): InboxFilterValue {
   if (assistantStyle === "priority-only") {
-    return "matches";
+    return "starred";
   }
 
   if (selectedFocusAreas.length > 0) {
     return selectedFocusAreas[0];
   }
 
-  return "matches";
+  return "starred";
 }
 
 export default function InboxPage() {
@@ -126,7 +126,7 @@ export default function InboxPage() {
     savedUser: null,
   });
   const [hasHydrated, setHasHydrated] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<InboxFilterValue>("matches");
+  const [activeFilter, setActiveFilter] = useState<InboxFilterValue>("starred");
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "unsupported">(
     "unsupported"
   );
@@ -234,7 +234,7 @@ export default function InboxPage() {
 
     setActiveFilter((currentFilter) => {
       const availableFilters = new Set<InboxFilterValue>([
-        "matches",
+        "starred",
         ...selectedFocusAreas,
       ]);
       const storedFilter = readStoredInboxFilter();
@@ -334,7 +334,7 @@ export default function InboxPage() {
   }, [emails, notificationFrequency]);
 
   const visibleEmails = emails.filter((email) => {
-    if (activeFilter === "matches") {
+    if (activeFilter === "starred") {
       return Boolean(email.shouldNotify);
     }
 
@@ -388,19 +388,23 @@ export default function InboxPage() {
   return (
     <div className="flex-1 flex flex-col h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
+      <header className="bg-white border-b border-gray-200 shadow-sm shrink-0">
         <div className="w-full px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <div className="text-2xl shrink-0">📧</div>
+            <button
+              onClick={() => router.push("/dashboard")}
+              className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition font-medium shrink-0"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+              <span className="hidden sm:inline">Dashboard</span>
+            </button>
+            <div className="w-px h-5 bg-gray-200 shrink-0" />
+            <div className="text-2xl shrink-0">{String.fromCodePoint(0x1F4E7)}</div>
             <div className="min-w-0">
               <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate">Email Checker</h1>
               <p className="text-xs sm:text-sm text-gray-600 truncate">{user}</p>
-              <p className="text-xs uppercase tracking-[0.2em] text-gray-500">
-                Connected: {connectionProvider ?? "Not selected"}
-              </p>
-              {connectedAccount?.email ? (
-                <p className="text-xs text-gray-500">{connectedAccount.email}</p>
-              ) : null}
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
@@ -409,6 +413,16 @@ export default function InboxPage() {
               className="px-2 sm:px-4 py-2 text-xs sm:text-sm bg-orange-100 hover:bg-orange-200 text-orange-700 rounded-lg font-medium transition whitespace-nowrap"
             >
               Spam
+            </button>
+            <button
+              onClick={() => router.push("/settings")}
+              className="px-2 sm:px-4 py-2 text-xs sm:text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition whitespace-nowrap"
+            >
+              <svg className="w-4 h-4 inline-block -mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span className="hidden sm:inline ml-1">Settings</span>
             </button>
             {notificationPermission === "default" ? (
               <button

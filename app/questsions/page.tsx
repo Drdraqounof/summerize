@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useEmail } from "../providers";
 import { getSessionItem } from "@/lib/client-session";
-import { focusAreaOptions } from "@/lib/onboarding";
+import { focusAreaOptions, createCustomFocusAreaId, parseCustomFocusAreaId, isCustomFocusAreaId } from "@/lib/onboarding";
 
 const aiExperienceOptions = [
 	{
@@ -72,6 +72,9 @@ export default function QuestionsPage() {
 	const [notificationFrequency, setNotificationFrequency] = useState(
 		onboardingAnswers?.notificationFrequency ?? ""
 	);
+	const [showCustomForm, setShowCustomForm] = useState(false);
+	const [customLabel, setCustomLabel] = useState("");
+	const [customKeywords, setCustomKeywords] = useState("");
 	const [error, setError] = useState("");
 
 	useEffect(() => {
@@ -238,7 +241,96 @@ export default function QuestionsPage() {
 										</button>
 									);
 								})}
+
+								{!showCustomForm ? (
+									<button
+										type="button"
+										onClick={() => setShowCustomForm(true)}
+										className="rounded-[1.5rem] border-2 border-dashed border-green-300 p-5 text-left transition hover:border-green-500 hover:bg-green-50 flex flex-col items-center justify-center min-h-[200px]"
+									>
+										<span className="text-3xl text-green-400">+</span>
+										<p className="mt-2 text-sm font-semibold text-green-700">Custom Category</p>
+										<p className="mt-1 text-xs text-slate-500">Create your own</p>
+									</button>
+								) : (
+									<div className="rounded-[1.5rem] border border-green-400 bg-green-50 p-5">
+										<p className="text-xs font-semibold uppercase tracking-[0.18em] text-green-700 mb-3">New Custom Category</p>
+										<div className="space-y-3">
+											<div>
+												<label className="block text-xs font-medium text-slate-700 mb-1">Category name</label>
+												<input
+													type="text"
+													value={customLabel}
+													onChange={(e) => setCustomLabel(e.target.value)}
+													placeholder="e.g. Food, Clothes, Chicken Wings"
+													className="w-full rounded-xl border border-green-200 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+												/>
+											</div>
+											<div>
+												<label className="block text-xs font-medium text-slate-700 mb-1">Keywords to watch for (comma-separated)</label>
+												<input
+													type="text"
+													value={customKeywords}
+													onChange={(e) => setCustomKeywords(e.target.value)}
+													placeholder="e.g. chicken, wings, recipe, meal"
+													className="w-full rounded-xl border border-green-200 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+												/>
+											</div>
+											<div className="flex gap-2">
+												<button
+													type="button"
+													onClick={() => {
+														setShowCustomForm(false);
+														setCustomLabel("");
+														setCustomKeywords("");
+													}}
+													className="flex-1 rounded-xl border border-green-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-white transition"
+												>
+													Cancel
+												</button>
+												<button
+													type="button"
+													onClick={() => {
+														const label = customLabel.trim();
+														const keywords = customKeywords.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+														if (!label || keywords.length === 0) return;
+														const id = createCustomFocusAreaId(label, keywords);
+														toggleFocusArea(id);
+														setShowCustomForm(false);
+														setCustomLabel("");
+														setCustomKeywords("");
+													}}
+													disabled={!customLabel.trim() || customKeywords.split(",").filter((s) => s.trim()).length === 0}
+													className="flex-1 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700 transition disabled:opacity-50"
+												>
+													Add Category
+												</button>
+											</div>
+										</div>
+									</div>
+								)}
 							</div>
+
+							{selectedFocusAreas.filter((id) => isCustomFocusAreaId(id)).length > 0 && (
+								<div className="flex flex-wrap gap-2 mt-2">
+									{selectedFocusAreas.filter((id) => isCustomFocusAreaId(id)).map((id) => {
+										const parsed = parseCustomFocusAreaId(id);
+										if (!parsed) return null;
+										return (
+											<span key={id} className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-purple-100 text-purple-700">
+												{parsed.label}
+												<button
+													type="button"
+													onClick={() => toggleFocusArea(id)}
+													className="hover:text-purple-900"
+												>
+													&times;
+												</button>
+											</span>
+										);
+									})}
+								</div>
+							)}
 						</fieldset>
 
 						<fieldset>

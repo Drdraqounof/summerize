@@ -113,15 +113,26 @@ model CustomRule {
   id             String   @id @default(cuid())
   userId         String
   name           String
+  enabled        Boolean  @default(true)
+  priority       Int      @default(0)
+  
+  // Legacy fields (kept for backward compatibility)
   isActive       Boolean  @default(true)
-  ruleType       String
-  condition      String
-  targetCategory String
+  ruleType       String?
+  condition      String?
+  targetCategory String?
+  
+  // New flexible format
+  conditions     Json     @default("{}")  // { senders: [], subjects: [], keywords: [] }
+  actions        Json     @default("{}")  // { category, notify, star, labels }
+  
   createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([userId, enabled])
   @@index([isActive])
 }
 

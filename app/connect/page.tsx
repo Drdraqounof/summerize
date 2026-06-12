@@ -11,21 +11,6 @@ const providerOptions = [
     name: "Gmail",
     description: "Connect a Google account and sync your Gmail inbox.",
   },
-  {
-    id: "outlook",
-    name: "Outlook",
-    description: "Use a Microsoft inbox for work or personal email.",
-  },
-  {
-    id: "yahoo",
-    name: "Yahoo Mail",
-    description: "Bring in a Yahoo mailbox for AI sorting and summaries.",
-  },
-  {
-    id: "imap",
-    name: "Other IMAP",
-    description: "Choose a custom provider if your mailbox supports IMAP.",
-  },
 ];
 
 function ConnectPageContent() {
@@ -86,13 +71,7 @@ function ConnectPageContent() {
   };
 
   const handleConnect = () => {
-    if (selectedProvider === "gmail") {
-      setShowGoogleWarning(true);
-      return;
-    }
-
-    saveConnectionProvider(selectedProvider);
-    setStatusMessage(`Selected ${providerOptions.find((provider) => provider.id === selectedProvider)?.name}. Live OAuth is currently wired for Gmail.`);
+    setShowGoogleWarning(true);
   };
 
   return (
@@ -106,7 +85,7 @@ function ConnectPageContent() {
             </p>
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900">Choose which email account to connect</h1>
             <p className="mt-2 sm:mt-3 max-w-2xl text-sm sm:text-base text-slate-700">
-              Pick the mailbox provider you want mailturtle to work with first. You can expand this flow with live OAuth wiring next.
+              Connect your Gmail account to sync your inbox.
             </p>
           </div>
           <button
@@ -118,7 +97,7 @@ function ConnectPageContent() {
           </button>
         </div>
 
-        <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
+        <div className="grid gap-3 sm:gap-4">
           {providerOptions.map((provider) => {
             const isSelected = selectedProvider === provider.id;
 
@@ -170,7 +149,7 @@ function ConnectPageContent() {
               onClick={handleConnect}
               className="inline-flex items-center justify-center rounded-full border border-green-400 bg-white px-8 py-3 font-semibold text-green-800 transition hover:bg-green-50"
             >
-              {selectedProvider === "gmail" ? "Connect with Google" : "Save Provider"}
+              Connect with Google
             </button>
             {/* Dev helper: allow manually setting a connected email for testing when OAuth is restricted */}
             {process.env.NODE_ENV !== "production" ? (

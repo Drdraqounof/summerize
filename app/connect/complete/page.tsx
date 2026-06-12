@@ -77,7 +77,7 @@ export default function ConnectCompletePage() {
     }, 850);
 
     const navigationTimer = window.setTimeout(() => {
-      router.replace("/inbox");
+      router.replace("/dashboard");
     }, 3600);
 
     return () => {
