@@ -17,7 +17,6 @@ const categoryColors: { [key: string]: string } = {
   Personal: "bg-green-100 text-green-700",
   Promotions: "bg-orange-100 text-orange-700",
   Alerts: "bg-red-100 text-red-700",
-  Other: "bg-gray-100 text-gray-700",
 };
 
 export default function EmailList({
@@ -87,7 +86,7 @@ export default function EmailList({
                 {email.category ? (
                   <span
                     className={`text-xs px-1.5 sm:px-2 py-0.5 rounded-full whitespace-nowrap shrink-0 ${
-                      categoryColors[email.category] || categoryColors.Other
+                      categoryColors[email.category] || "bg-gray-100 text-gray-700"
                     }`}
                   >
                     {email.category}

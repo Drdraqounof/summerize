@@ -29,7 +29,7 @@ export default function ConnectCompletePage() {
 function ConnectCompleteContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isLoggedIn, onboardingAnswers, saveConnectedAccount } = useEmail();
+  const { isLoggedIn, isHydrated, onboardingAnswers, saveConnectedAccount } = useEmail();
   const [activeStep, setActiveStep] = useState(0);
   const hasSavedAccount = useRef(false);
 
@@ -38,6 +38,10 @@ function ConnectCompleteContent() {
   const connectedName = searchParams.get("name");
 
   useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+
     const savedUser = getSessionItem("emailUser");
 
     if (!isLoggedIn && !savedUser) {
@@ -53,7 +57,7 @@ function ConnectCompleteContent() {
     if (googleStatus !== "connected" || !connectedEmail) {
       router.replace("/connect");
     }
-  }, [connectedEmail, googleStatus, isLoggedIn, onboardingAnswers, router]);
+  }, [connectedEmail, googleStatus, isHydrated, isLoggedIn, onboardingAnswers, router]);
 
   useEffect(() => {
     if (!connectedEmail || hasSavedAccount.current) {

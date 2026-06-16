@@ -18,7 +18,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   Personal: "#8b5cf6",
   Promotions: "#f59e0b",
   Alerts: "#ef4444",
-  Other: "#6b7280",
 };
 
 function StatCard({
@@ -32,7 +31,7 @@ function StatCard({
   title: string;
   value: string | number;
   subtitle?: string;
-  trend?: { direction: "up" | "down"; percent: number };
+  trend?: { direction: "up" | "down"; percent: number } | null;
   icon?: React.ReactNode;
   color?: "blue" | "green" | "amber" | "red";
 }) {
@@ -272,6 +271,17 @@ export default function DashboardPage() {
                     </svg>
                   }
                   color="red"
+                />
+                <StatCard
+                  title="AI Cost"
+                  value={`$${stats.costThisPeriod.toFixed(4)}`}
+                  subtitle={stats.emailsProcessed > 0 ? `$${(stats.costThisPeriod / stats.emailsProcessed).toFixed(4)}/email` : ""}
+                  icon={
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                  }
+                  color="amber"
                 />
               </div>
 

@@ -66,6 +66,7 @@ interface GmailMessagesResponse {
 interface EmailContextType {
   emails: Email[];
   spamEmails: Email[];
+  isHydrated: boolean;
   isLoggedIn: boolean;
   user: string | null;
   onboardingAnswers: OnboardingAnswers | null;
@@ -120,6 +121,7 @@ export function EmailProvider({ children }: { children: ReactNode }) {
   const [onboardingAnswers, setOnboardingAnswers] = useState<OnboardingAnswers | null>(null);
   const [connectionProvider, setConnectionProvider] = useState<string | null>(null);
   const [connectedAccount, setConnectedAccount] = useState<ConnectedAccount | null>(null);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
     // Only run on client after hydration
@@ -151,6 +153,8 @@ export function EmailProvider({ children }: { children: ReactNode }) {
     if (savedConnectedAccount) {
       setConnectedAccount(JSON.parse(savedConnectedAccount));
     }
+
+    setIsHydrated(true);
   }, []);
 
   const hydrateSignedInUser = (email: string, answers: OnboardingAnswers | null) => {
@@ -569,6 +573,7 @@ export function EmailProvider({ children }: { children: ReactNode }) {
       value={{
         emails,
         spamEmails,
+        isHydrated,
         isLoggedIn,
         user,
         onboardingAnswers,

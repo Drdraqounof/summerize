@@ -201,7 +201,7 @@ export default function Home() {
             </div>
             <h3 className="text-xl font-bold text-slate-900 mb-3">AI Analysis</h3>
             <p className="text-slate-700">
-              Our AI powered by OpenAI&apos;s GPT models automatically analyzes your emails and categorizes them into Work, Personal, Promotions, Alerts, and Other categories in real-time.
+              Our AI powered by OpenAI&apos;s GPT models automatically analyzes your emails and categorizes them into Work, Personal, Promotions, and Alerts in real-time.
             </p>
           </motion.div>
 

@@ -30,7 +30,6 @@ const CATEGORIES = Array.from(
     "Personal",
     "Promotions",
     "Alerts",
-    "Other",
     ...focusAreaOptions.map((f) => f.label),
   ])
 );

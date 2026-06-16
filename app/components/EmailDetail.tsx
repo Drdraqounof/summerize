@@ -13,7 +13,6 @@ const categoryColors: { [key: string]: string } = {
   Personal: "bg-green-50 border-green-200 text-green-900",
   Promotions: "bg-orange-50 border-orange-200 text-orange-900",
   Alerts: "bg-red-50 border-red-200 text-red-900",
-  Other: "bg-gray-50 border-gray-200 text-gray-900",
 };
 
 export default function EmailDetail({ assistantStyle, email }: EmailDetailProps) {
@@ -63,7 +62,7 @@ export default function EmailDetail({ assistantStyle, email }: EmailDetailProps)
         {email.category && (
           <div
             className={`p-3 sm:p-4 rounded-lg border-2 ${
-              categoryColors[email.category] || categoryColors.Other
+              categoryColors[email.category] || "bg-gray-50 border-gray-200 text-gray-900"
             }`}
           >
             <div className="flex items-start gap-2 sm:gap-3">

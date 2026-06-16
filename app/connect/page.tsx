@@ -17,6 +17,7 @@ function ConnectPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const {
+    isHydrated,
     isLoggedIn,
     onboardingAnswers,
     connectionProvider,
@@ -37,6 +38,10 @@ function ConnectPageContent() {
       : "";
 
   useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+
     const savedUser = getSessionItem("emailUser");
 
     if (!isLoggedIn && !savedUser) {
@@ -47,7 +52,7 @@ function ConnectPageContent() {
     if (!onboardingAnswers && !getSessionItem("onboardingAnswers")) {
       router.replace("/questions");
     }
-  }, [isLoggedIn, onboardingAnswers, router]);
+  }, [isHydrated, isLoggedIn, onboardingAnswers, router]);
 
   useEffect(() => {
     if (googleStatus === "connected" && connectedEmail) {

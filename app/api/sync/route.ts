@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getToken } from "@/lib/tokenStore";
 import { syncGmailLabel, type SyncLabel } from "@/lib/gmail-sync";
 import { analyzeUnanalyzedEmails } from "@/lib/email-analysis";
+import { emailMatchesAnyRule, type RuleConditions, type EmailForMatching } from "@/lib/rule-engine";
 
 type SyncPeriod = "week" | "month" | "all";
 
@@ -54,13 +55,20 @@ export async function POST(request: NextRequest) {
     const { since, maxPerLabel } = getSyncConfig(period as SyncPeriod);
     const labels: SyncLabel[] = ["inbox", "spam", "promotions", "updates", "trash"];
 
+    // Fetch active rules to filter which emails to keep
+    const activeRules = await prisma.customRule.findMany({
+      where: { userId: user.id, enabled: true },
+      select: { conditions: true },
+    });
+    const ruleConditions = activeRules.map((r: { conditions: unknown }) => ({ conditions: r.conditions as RuleConditions }));
+
     let totalSynced = 0;
     let totalTruncated = false;
 
     // Sync each label sequentially to avoid rate limits
     for (const label of labels) {
       try {
-        const result = await syncGmailLabel(accessToken, email, user.id, label, since, maxPerLabel);
+        const result = await syncGmailLabel(accessToken, email, user.id, label, since, maxPerLabel, ruleConditions);
         totalSynced += result.synced;
         if (result.truncated) totalTruncated = true;
       } catch (error) {
@@ -69,7 +77,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Analyze newly fetched emails
+    // Analyze newly fetched emails (safety: only emails matching rules were stored)
     const analyzed = await analyzeUnanalyzedEmails(user.id, since);
 
     console.log(`[Sync] Complete - synced: ${totalSynced}, analyzed: ${analyzed}`);

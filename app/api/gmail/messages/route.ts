@@ -6,6 +6,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { getToken } from "@/lib/tokenStore";
 import { syncGmailLabel, type SyncLabel } from "@/lib/gmail-sync";
+import { emailMatchesAnyRule, type RuleConditions, type EmailForMatching } from "@/lib/rule-engine";
 
 const GMAIL_API_URL = "https://www.googleapis.com/gmail/v1/users/me";
 
@@ -85,13 +86,23 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Fetch active rules to filter which emails to keep
+    let activeRules: Array<{ conditions: RuleConditions }> = [];
+    if (user) {
+      const rules = await prisma.customRule.findMany({
+        where: { userId: user.id, enabled: true },
+        select: { conditions: true },
+      });
+      activeRules = rules.map((r: { conditions: unknown }) => ({ conditions: r.conditions as RuleConditions }));
+    }
+
     // When since is provided, use paginated sync for date-range fetching
     if (sinceParam) {
       const since = new Date(sinceParam);
       const maxResults = maxResultsParam ? parseInt(maxResultsParam, 10) : 500;
 
       if (user) {
-        const result = await syncGmailLabel(accessToken, email, user.id, label, since, maxResults);
+        const result = await syncGmailLabel(accessToken, email, user.id, label, since, maxResults, activeRules);
 
         // Return the synced emails from the database
         const dbEmails = await prisma.email.findMany({
@@ -224,9 +235,22 @@ export async function GET(request: NextRequest) {
       ? await supportsEmailNotificationPersistence()
       : false;
 
-    const emails = user
-      ? await Promise.all(
+    const rawEmails = user
+      ? (await Promise.all(
           transformedEmails.map(async (emailRecord) => {
+            // Skip emails that don't match any active rule
+            if (activeRules.length > 0) {
+              const emailForMatching: EmailForMatching = {
+                from: emailRecord.from,
+                subject: emailRecord.subject,
+                body: emailRecord.body,
+                preview: emailRecord.preview,
+              };
+              if (!emailMatchesAnyRule(emailForMatching, activeRules)) {
+                return null;
+              }
+            }
+
             try {
               const persisted = await prisma.email.upsert({
                 where: { gmailId: emailRecord.id },
@@ -309,7 +333,7 @@ export async function GET(request: NextRequest) {
               throw error;
             }
           })
-        )
+        )).filter(<T>(x: T): x is NonNullable<T> => x != null)
       : transformedEmails.map((emailRecord) => ({
           id: emailRecord.id,
           accountEmail: email,
@@ -323,8 +347,8 @@ export async function GET(request: NextRequest) {
           analyzed: false,
         }));
 
-    console.log("[Gmail API] Successfully fetched", emails.length, "emails for", email);
-    return NextResponse.json({ emails, total: messagesData.resultSizeEstimate || emails.length });
+    console.log("[Gmail API] Successfully fetched", rawEmails.length, "emails for", email);
+    return NextResponse.json({ emails: rawEmails, total: messagesData.resultSizeEstimate || rawEmails.length });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("[Gmail API] Fetch error:", errorMessage, error);
