@@ -12,7 +12,7 @@ export interface DashboardStats {
   estimatedTimeSaved: number;
   costThisPeriod: number;
   topRule: { name: string; matchCount: number } | null;
-  trend: { direction: "up" | "down"; percent: number };
+  trend: { direction: "up" | "down"; percent: number } | null;
   dailyVolume: { date: string; count: number }[];
 }
 
@@ -28,12 +28,18 @@ function getPeriodStart(period: DashboardPeriod): Date {
   }
 }
 
+function getPeriodDurationMs(period: DashboardPeriod): number {
+  switch (period) {
+    case "week": return 7 * 24 * 60 * 60 * 1000;
+    case "month": return 30 * 24 * 60 * 60 * 1000;
+    case "all": return 0;
+  }
+}
+
 function getPreviousPeriodStart(period: DashboardPeriod, periodStart: Date): Date {
-  const diff = periodStart === new Date(0) ? 30 : periodStart.getTime();
-  const now = new Date();
-  const prevEnd = new Date(periodStart.getTime() - 1);
-  const prevStart = new Date(prevEnd.getTime() - diff);
-  return prevStart;
+  if (period === "all") return periodStart;
+  const durationMs = getPeriodDurationMs(period);
+  return new Date(periodStart.getTime() - durationMs);
 }
 
 export async function getDashboardStats(
@@ -100,8 +106,10 @@ export async function getDashboardStats(
     }),
   ]);
 
+  const trackedCategories = new Set(["Work", "Personal", "Promotions", "Alerts"]);
   const categoryBreakdown: Record<string, number> = {};
   for (const record of categoryRecords) {
+    if (!trackedCategories.has(record.category)) continue;
     categoryBreakdown[record.category] = (categoryBreakdown[record.category] || 0) + 1;
   }
 
@@ -126,13 +134,15 @@ export async function getDashboardStats(
     }
   }
 
-  const trend: { direction: "up" | "down"; percent: number } =
+  const trend: { direction: "up" | "down"; percent: number } | null =
     previousTotal > 0
       ? {
           direction: totalEmails >= previousTotal ? "up" : "down",
           percent: Math.round(((totalEmails - previousTotal) / previousTotal) * 100),
         }
-      : { direction: "up", percent: 0 };
+      : totalEmails > 0
+        ? { direction: "up", percent: 100 }
+        : null;
 
   const dailyVolumeMap = new Map<string, number>();
   for (const email of dailyData) {

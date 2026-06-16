@@ -29,16 +29,66 @@ export default function ConnectCompletePage() {
 function ConnectCompleteContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isLoggedIn, isHydrated, onboardingAnswers, saveConnectedAccount } = useEmail();
+  const { isLoggedIn, isHydrated, onboardingAnswers, saveConnectedAccount, hydrateSignedInUser } = useEmail();
   const [activeStep, setActiveStep] = useState(0);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
   const hasSavedAccount = useRef(false);
+  const hasAuthenticatedRef = useRef(false);
 
   const googleStatus = searchParams.get("google");
   const connectedEmail = searchParams.get("email");
   const connectedName = searchParams.get("name");
 
+  // Step 1: Authenticate with Google OAuth if coming from callback
   useEffect(() => {
-    if (!isHydrated) {
+    if (!isHydrated || !connectedEmail || googleStatus !== "connected" || hasAuthenticatedRef.current) {
+      return;
+    }
+
+    const authenticateWithGoogle = async () => {
+      try {
+        setIsAuthenticating(true);
+        const response = await fetch("/api/auth/google-signin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: connectedEmail,
+            name: connectedName || undefined,
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          console.error("[Google Auth] Failed to sign in:", error.error);
+          router.replace("/connect?google=auth-error");
+          return;
+        }
+
+        const data = (await response.json()) as {
+          user?: { id: string; email: string; name?: string };
+          onboardingAnswers?: object;
+          hasCompletedOnboarding?: boolean;
+        };
+
+        if (data.user) {
+          hydrateSignedInUser(data.user.email, data.onboardingAnswers ?? null);
+          console.log("[Google Auth] Successfully authenticated:", data.user.email);
+        }
+      } catch (error) {
+        console.error("[Google Auth] Authentication error:", error);
+        router.replace("/connect?google=auth-error");
+      } finally {
+        setIsAuthenticating(false);
+        hasAuthenticatedRef.current = true;
+      }
+    };
+
+    authenticateWithGoogle();
+  }, [connectedEmail, connectedName, googleStatus, isHydrated, router, hydrateSignedInUser]);
+
+  // Step 2: Validate session after authentication
+  useEffect(() => {
+    if (!isHydrated || isAuthenticating) {
       return;
     }
 
@@ -57,7 +107,7 @@ function ConnectCompleteContent() {
     if (googleStatus !== "connected" || !connectedEmail) {
       router.replace("/connect");
     }
-  }, [connectedEmail, googleStatus, isHydrated, isLoggedIn, onboardingAnswers, router]);
+  }, [connectedEmail, googleStatus, isHydrated, isLoggedIn, onboardingAnswers, router, isAuthenticating]);
 
   useEffect(() => {
     if (!connectedEmail || hasSavedAccount.current) {

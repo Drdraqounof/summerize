@@ -82,6 +82,7 @@ interface EmailContextType {
   saveOnboardingAnswers: (answers: OnboardingAnswers) => Promise<void>;
   saveConnectionProvider: (provider: string) => void;
   saveConnectedAccount: (account: ConnectedAccount) => void;
+  hydrateSignedInUser: (email: string, answers: OnboardingAnswers | null) => void;
   loadGmailEmails: (email: string) => Promise<void>;
   loadSpamEmails: (email: string) => Promise<void>;
 }
@@ -589,6 +590,7 @@ export function EmailProvider({ children }: { children: ReactNode }) {
         saveOnboardingAnswers,
         saveConnectionProvider,
         saveConnectedAccount,
+        hydrateSignedInUser,
         loadGmailEmails,
         loadSpamEmails,
       }}

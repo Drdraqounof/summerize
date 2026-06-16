@@ -27,72 +27,97 @@ export default function EmailDetail({ assistantStyle, email }: EmailDetailProps)
   }, [email.id, email.read, markAsRead]);
 
   return (
-    <div className="bg-white">
-      <div className="p-4 sm:p-6 border-b border-gray-200">
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 break-words">
-          {email.isStarred ? <span className="inline-block mr-2">⭐</span> : null}
-          {email.subject}
-        </h2>
+    <div className="bg-white overflow-y-auto">
+      {/* Detail Pane Header - NEW STRUCTURE */}
+      <div className="border-b border-gray-200 sticky top-0 bg-white">
+        {/* Subject */}
+        <div className="px-4 sm:px-6 pt-6 pb-3">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 break-words">
+            {email.subject}
+          </h2>
+        </div>
 
-        {email.shouldNotify ? (
-          <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-            <p className="font-semibold">Flagged for your watchlist</p>
-            <p className="mt-1">
-              {showActionReasonFirst
-                ? email.matchReason || "This email matches one of your chosen topics."
-                : email.matchReason || "This email matches one of your chosen topics."}
-            </p>
-          </div>
-        ) : null}
-
-        <div className="space-y-2 mb-6">
-          <div>
-            <p className="text-sm text-gray-600">From</p>
-            <p className="font-semibold text-gray-900">{email.from}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600">Date</p>
-            <p className="text-gray-900">
-              {new Date(email.timestamp).toLocaleString()}
-            </p>
+        {/* Metadata: From + Date in tight row */}
+        <div className="px-4 sm:px-6 pb-3 flex flex-col gap-1">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-gray-600 uppercase tracking-wide">From</p>
+              <p className="text-sm font-semibold text-gray-900">{email.from}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-gray-600 uppercase tracking-wide">Date</p>
+              <p className="text-sm text-gray-900">
+                {new Date(email.timestamp).toLocaleString()}
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* AI Analysis Card */}
-        {email.category && (
+        {/* Action Buttons - Icon + short word */}
+        <div className="px-4 sm:px-6 pb-4 flex items-center gap-2 border-t border-gray-100 pt-3">
+          <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-gray-100 transition text-gray-700 text-sm">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8m0 8l-4-2m4 2l4-2"
+              />
+            </svg>
+            Archive
+          </button>
+          <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-red-50 transition text-red-700 text-sm">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            Delete
+          </button>
+          <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-yellow-50 transition text-yellow-700 text-sm">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+            Flag
+          </button>
+        </div>
+      </div>
+
+      {/* AI Summary Card - Positioned ABOVE body */}
+      {email.category && (
+        <div className="px-4 sm:px-6 pt-4 pb-0">
           <div
-            className={`p-3 sm:p-4 rounded-lg border-2 ${
+            className={`p-4 rounded-lg border-2 ${
               categoryColors[email.category] || "bg-gray-50 border-gray-200 text-gray-900"
             }`}
           >
-            <div className="flex items-start gap-2 sm:gap-3">
-              <span className="text-lg">✨</span>
+            <div className="flex items-start gap-3">
+              <span className="text-lg flex-shrink-0">✨</span>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-xs sm:text-sm mb-1">AI Analysis</p>
+                <p className="font-bold text-sm mb-2 text-gray-900">AI Summary</p>
                 {showSummaryFirst && email.summary ? (
-                  <p className="text-sm mb-2">
-                    <strong>Summary:</strong> {email.summary}
+                  <p className="text-sm mb-2 text-gray-800">
+                    {email.summary}
                   </p>
                 ) : null}
-                <p className="text-sm mb-2">
-                  <strong>Category:</strong> {email.category}
+                <p className="text-sm font-semibold text-gray-800 mb-1">
+                  Category: <span className="font-normal">{email.category}</span>
                 </p>
                 {!showSummaryFirst && email.summary && (
-                  <p className="text-sm">
-                    <strong>Summary:</strong> {email.summary}
+                  <p className="text-sm text-gray-800 mb-1">
+                    {email.summary}
                   </p>
                 )}
                 {showActionReasonFirst && email.matchReason ? (
-                  <p className="mt-2 text-sm">
-                    <strong>Why it matters:</strong> {email.matchReason}
+                  <p className="mt-2 text-sm text-gray-800">
+                    <span className="font-semibold">Why:</span> {email.matchReason}
                   </p>
                 ) : null}
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
+      {/* Email Body */}
       <div className="p-4 sm:p-6 max-w-none text-sm sm:text-base text-gray-700 [&_a]:text-blue-600 [&_a]:underline [&_img]:h-auto [&_img]:max-w-full [&_table]:w-full [&_table]:text-xs sm:[&_table]:text-sm [&_td]:align-top [&_th]:align-top [&_td]:p-2 sm:[&_td]:p-3 [&_th]:p-2 sm:[&_th]:p-3">
         {email.bodyHtml ? (
           <div dangerouslySetInnerHTML={{ __html: email.bodyHtml }} />

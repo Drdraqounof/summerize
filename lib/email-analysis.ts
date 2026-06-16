@@ -1,12 +1,19 @@
 import OpenAI from "openai";
 import { prisma } from "./prisma";
 import { isMissingEmailNotificationColumnError, supportsEmailNotificationPersistence } from "./email-schema";
+import { emailMatchesAnyRule, type RuleConditions, type EmailForMatching } from "./rule-engine";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
 const analysisCache = new Map<string, AnalysisResult>();
+
+const VALID_CATEGORIES = new Set(["Work", "Personal", "Promotions", "Alerts"]);
+
+function sanitizeCategory(category: string): string {
+  return VALID_CATEGORIES.has(category) ? category : "";
+}
 
 export interface AnalysisResult {
   category: string;
@@ -110,10 +117,10 @@ export async function batchAnalyzeEmails(
                 role: "system",
                 content: `Analyze email and respond with ONLY valid JSON:
 {
-  "category": "Work|Personal|Promotions|Alerts|Other",
-  "summary": "brief summary max 100 chars",
+  "category": "Work|Personal|Promotions|Alerts",
+  "summary": "informative summary max 120 chars — extract key details, action items, or content highlights that go beyond the subject line. Avoid just rephrasing the subject.",
   "shouldNotify": true,
-  "matchReason": "short reason why this matches the user's watchlist, or 'General inbox item'",
+  "matchReason": "specific reason this email is important to the user based on their priorities, or 'General inbox item'",
   "isStarred": true
 }
 
@@ -131,14 +138,21 @@ ${promptContext}`,
           });
           const content = response.choices[0]?.message?.content;
           if (content) {
-            const result = JSON.parse(content);
+            const parsed = JSON.parse(content);
+            const result: AnalysisResult = {
+              category: sanitizeCategory(parsed.category),
+              summary: parsed.summary || "",
+              shouldNotify: Boolean(parsed.shouldNotify),
+              matchReason: parsed.matchReason || "General inbox item",
+              isStarred: Boolean(parsed.isStarred),
+            };
             results[email.id] = result;
             analysisCache.set(email.id, result);
           }
         } catch (error) {
           console.error(`[Email Analysis] Failed to analyze email ${email.id}:`, error);
           results[email.id] = {
-            category: "Other",
+            category: "",
             summary: "Analysis failed",
             shouldNotify: false,
             matchReason: "General inbox item",
@@ -165,7 +179,7 @@ export async function persistAnalysisResult(userId: string, gmailId: string, res
   const data: Record<string, unknown> = {
     summary: result.summary,
     analyzedAt: new Date(),
-    isStarred: result.isStarred,
+    isFlagged: result.isStarred,
   };
 
   if (result.category) {
@@ -193,6 +207,7 @@ export async function analyzeUnanalyzedEmails(
   userId: string,
   since?: Date,
   scanPreferences?: ScanPreferences,
+  rules?: Array<{ conditions: RuleConditions }>,
 ): Promise<number> {
   const whereClause: Record<string, unknown> = { userId, analyzedAt: null };
   if (since) whereClause.receivedAt = { gte: since };
@@ -204,7 +219,7 @@ export async function analyzeUnanalyzedEmails(
 
   const unanalyzed = await prisma.email.findMany({
     where: whereClause,
-    select: { id: true, gmailId: true, subject: true, body: true },
+    select: { id: true, gmailId: true, subject: true, body: true, from: true },
   });
 
   if (unanalyzed.length === 0) {
@@ -213,17 +228,45 @@ export async function analyzeUnanalyzedEmails(
   }
   console.log(`[Email Analysis] Found ${unanalyzed.length} unanalyzed emails in period`);
 
-  const analysisInput = unanalyzed
-    .filter((e: { gmailId?: string | null; subject?: string | null; body?: string | null }) => e.gmailId && e.subject && e.body)
-    .map((e: { gmailId: string; subject: string; body: string }) => ({ id: e.gmailId, subject: e.subject, body: e.body }));
+  interface UnanalyzedEmail {
+    gmailId: string | null;
+    subject: string | null;
+    body: string | null;
+    from: string;
+  }
 
-  if (analysisInput.length === 0) {
+  const analysisInput = unanalyzed
+    .filter((e: UnanalyzedEmail) => e.gmailId && e.subject && e.body)
+    .map((e: UnanalyzedEmail) => ({ id: e.gmailId!, subject: e.subject!, body: e.body!, from: e.from }));
+
+  // Safety filter: only analyze emails that match at least one rule
+  const matchedAnalysisInput = (rules && rules.length > 0)
+    ? analysisInput.filter((email: { id: string; subject: string; body: string; from: string }) => {
+        const emailForMatching: EmailForMatching = {
+          from: email.from || "",
+          subject: email.subject,
+          body: email.body,
+        };
+        return emailMatchesAnyRule(emailForMatching, rules);
+      })
+    : analysisInput;
+
+  if (matchedAnalysisInput.length < analysisInput.length) {
+    console.log(`[Email Analysis] Filtered out ${analysisInput.length - matchedAnalysisInput.length} emails that don't match any rule`);
+  }
+
+  if (matchedAnalysisInput.length === 0) {
+    console.log(`[Email Analysis] No emails match any active rule — skipping analysis`);
+    return 0;
+  }
+
+  if (matchedAnalysisInput.length === 0) {
     console.log(`[Email Analysis] All ${unanalyzed.length} unanalyzed emails filtered out (missing gmailId/subject/body)`);
     return 0;
   }
-  console.log(`[Email Analysis] Sending ${analysisInput.length} emails to OpenAI`);
+  console.log(`[Email Analysis] Sending ${matchedAnalysisInput.length} emails to OpenAI`);
 
-  const results = await batchAnalyzeEmails(analysisInput, scanPreferences);
+  const results = await batchAnalyzeEmails(matchedAnalysisInput, scanPreferences);
 
   let analyzed = 0;
   await Promise.all(
@@ -233,7 +276,7 @@ export async function analyzeUnanalyzedEmails(
     }),
   );
 
-  console.log(`[Email Analysis] Analyzed ${analyzed} emails (attempted ${analysisInput.length})`);
+  console.log(`[Email Analysis] Analyzed ${analyzed} emails (attempted ${matchedAnalysisInput.length})`);
   // Log how many categorized vs uncategorized remain
   const total = await prisma.email.count({ where: { userId } });
   const categorized = await prisma.email.count({ where: { userId, category: { isNot: null } } });

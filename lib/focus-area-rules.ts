@@ -55,7 +55,7 @@ const FOCUS_AREA_RULES: Record<string, FocusAreaRuleDefinition> = {
       conditionType: "any",
     },
     actions: {
-      category: "Other",
+      category: "Alerts",
       notify: true,
     },
   },

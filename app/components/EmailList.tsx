@@ -19,6 +19,32 @@ const categoryColors: { [key: string]: string } = {
   Alerts: "bg-red-100 text-red-700",
 };
 
+function getInitials(email: string): string {
+  const parts = email.split(/[<@]/);
+  const name = parts[0]?.trim() || parts[1]?.trim() || "";
+  return name
+    .split(" ")
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase())
+    .join("")
+    .slice(0, 2) || "?";
+}
+
+function getAvatarColor(email: string): string {
+  const colors = [
+    "bg-blue-500",
+    "bg-green-500",
+    "bg-purple-500",
+    "bg-pink-500",
+    "bg-yellow-500",
+    "bg-red-500",
+    "bg-indigo-500",
+    "bg-cyan-500",
+  ];
+  const hash = email.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return colors[hash % colors.length];
+}
+
 export default function EmailList({
   assistantStyle,
   emails,
@@ -30,8 +56,6 @@ export default function EmailList({
   const { batchAnalyzeEmails } = useEmail();
   const batchedRef = useRef(false);
   const showSummaryFirst = assistantStyle === "smart-summaries";
-  const showActionReasonFirst = assistantStyle === "action-items";
-  const compactPriorityView = assistantStyle === "priority-only";
 
   // Batch analyze all unanalyzed emails in one request
   useEffect(() => {
@@ -63,56 +87,74 @@ export default function EmailList({
         <button
           key={email.id}
           onClick={() => onSelectEmail(email.id)}
-          className={`w-full text-left px-3 sm:px-4 py-2 sm:py-3 hover:bg-gray-50 transition border-l-4 ${
+          className={`w-full text-left px-3 sm:px-4 py-3 hover:bg-gray-50 transition border-l-4 ${
             selectedId === email.id
-              ? "border-blue-600 bg-blue-50"
-              : "border-transparent"
-          } ${!email.read ? "font-semibold" : "font-normal"}`}
+              ? "border-green-500 bg-green-50"
+              : email.shouldNotify
+                ? "border-green-400 bg-white"
+                : "border-transparent"
+          }`}
         >
-          <div className="flex items-start gap-2">
-            <span className={`text-lg ${email.read ? "opacity-50" : ""}`}>
-              {email.isStarred ? "⭐" : email.read ? "📖" : "📬"}
-            </span>
+          <div className="flex items-start gap-3">
+            {/* Avatar Circle */}
+            <div
+              className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-bold ${getAvatarColor(email.from)}`}
+            >
+              {getInitials(email.from)}
+            </div>
+
+            {/* Content */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1 sm:gap-2 mb-1 flex-wrap">
-                <p className="text-xs sm:text-sm font-semibold text-gray-900 truncate">
-                  {email.from}
+              {/* Sender */}
+              <div className="flex items-center gap-2 mb-1">
+                <p
+                  className={`text-xs sm:text-sm font-semibold text-gray-900 truncate ${
+                    !email.read ? "font-bold" : ""
+                  }`}
+                >
+                  {email.from.split("<")[0]?.trim() || email.from}
                 </p>
-                {email.shouldNotify ? (
-                  <span className="text-xs px-1.5 sm:px-2 py-0.5 rounded-full whitespace-nowrap bg-emerald-100 text-emerald-700 shrink-0">
-                    Notify
+                {!email.read && (
+                  <span className="flex-shrink-0 w-2 h-2 rounded-full bg-blue-600" />
+                )}
+              </div>
+
+              {/* Subject */}
+              <p
+                className={`text-xs sm:text-sm text-gray-800 mb-1 truncate ${
+                  !email.read ? "font-semibold" : "font-normal"
+                }`}
+              >
+                {email.subject}
+              </p>
+
+              {/* Preview */}
+              <p className="text-xs text-gray-600 truncate mb-2">{email.preview}</p>
+
+              {/* Badges */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {email.shouldNotify && (
+                  <span className="text-xs px-2 py-1 rounded-full whitespace-nowrap bg-green-100 text-green-700 font-medium shrink-0">
+                    Watchlist
                   </span>
-                ) : null}
-                {email.category ? (
+                )}
+                {email.category && (
                   <span
-                    className={`text-xs px-1.5 sm:px-2 py-0.5 rounded-full whitespace-nowrap shrink-0 ${
+                    className={`text-xs px-2 py-1 rounded-full whitespace-nowrap font-medium shrink-0 ${
                       categoryColors[email.category] || "bg-gray-100 text-gray-700"
                     }`}
                   >
                     {email.category}
                   </span>
-                ) : (
-                  <span className="text-xs text-gray-400 shrink-0">analyzing...</span>
+                )}
+                {email.gmailLabel && (
+                  <span className="text-xs px-2 py-1 rounded-full whitespace-nowrap bg-purple-100 text-purple-700 font-medium shrink-0">
+                    {email.gmailLabel}
+                  </span>
                 )}
               </div>
-              <p className="text-xs sm:text-sm text-gray-700 truncate">{email.subject}</p>
-              {showSummaryFirst && email.summary ? (
-                <>
-                  <p className="text-xs sm:text-sm text-gray-600 truncate">{email.summary}</p>
-                  <p className="mt-1 text-xs text-blue-700 truncate">Summary: {email.summary}</p>
-                </>
-              ) : null}
-              {showActionReasonFirst && email.shouldNotify && email.matchReason ? (
-                <p className="mt-1 text-xs text-emerald-700 truncate">Action cue: {email.matchReason}</p>
-              ) : null}
-              {!compactPriorityView ? (
-                <p className="text-xs text-gray-500 truncate">{email.preview}</p>
-              ) : null}
-              {!showSummaryFirst && email.summary ? (
+              {email.shouldNotify && email.summary ? (
                 <p className="mt-1 text-xs text-blue-700 truncate">Summary: {email.summary}</p>
-              ) : null}
-              {!showActionReasonFirst && email.shouldNotify && email.matchReason ? (
-                <p className="text-xs text-emerald-700 truncate mt-1">{email.matchReason}</p>
               ) : null}
               <p className="text-xs text-gray-400 mt-1">
                 {new Date(email.timestamp).toLocaleDateString()}

@@ -83,6 +83,17 @@ export function matchesConditions(
 }
 
 /**
+ * Check if an email matches at least one rule's conditions
+ */
+export function emailMatchesAnyRule(
+  email: EmailForMatching,
+  rules: Array<{ conditions: RuleConditions }>
+): boolean {
+  if (!rules || rules.length === 0) return false;
+  return rules.some((rule) => matchesConditions(email, rule.conditions));
+}
+
+/**
  * Get applicable rules for an email and return merged actions
  */
 export async function getEmailRuleActions(

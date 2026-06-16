@@ -274,8 +274,8 @@ export default function DashboardPage() {
                 />
                 <StatCard
                   title="AI Cost"
-                  value={`$${stats.costThisPeriod.toFixed(4)}`}
-                  subtitle={stats.emailsProcessed > 0 ? `$${(stats.costThisPeriod / stats.emailsProcessed).toFixed(4)}/email` : ""}
+                  value={stats.costThisPeriod === 0 ? "$0" : `$${stats.costThisPeriod.toFixed(4)}`}
+                  subtitle={stats.emailsProcessed > 0 ? (stats.costThisPeriod === 0 ? "$0/email" : `$${(stats.costThisPeriod / stats.emailsProcessed).toFixed(4)}/email`) : ""}
                   icon={
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />

@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import { supportsEmailNotificationPersistence } from "./email-schema";
+import { emailMatchesAnyRule, type RuleConditions, type EmailForMatching } from "./rule-engine";
 
 const GMAIL_API_URL = "https://www.googleapis.com/gmail/v1/users/me";
 
@@ -163,7 +164,8 @@ export async function syncGmailLabel(
   userId: string,
   label: SyncLabel,
   since?: Date,
-  maxResults: number = 500
+  maxResults: number = 500,
+  rules?: Array<{ conditions: RuleConditions }>
 ): Promise<SyncResult> {
   let synced = 0;
   let truncated = false;
@@ -225,6 +227,19 @@ export async function syncGmailLabel(
         receivedAt: msg.internalDate ? new Date(parseInt(msg.internalDate)) : new Date(),
         gmailLabel: label,
       };
+
+      // Skip emails that don't match any active rule
+      if (rules && rules.length > 0) {
+        const emailForMatching: EmailForMatching = {
+          from: record.from,
+          subject: record.subject,
+          body: record.body,
+          preview: record.preview,
+        };
+        if (!emailMatchesAnyRule(emailForMatching, rules)) {
+          continue;
+        }
+      }
 
       try {
         await prisma.email.upsert({

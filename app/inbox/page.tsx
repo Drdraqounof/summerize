@@ -8,7 +8,6 @@ import EmailDetail from "../components/EmailDetail";
 import InboxFilterBar, { type InboxFilterValue } from "../components/InboxFilterBar";
 import { getSessionItem } from "@/lib/client-session";
 import {
-  getFocusAreaLabels,
   getFocusAreaOptionsById,
   matchesFocusArea,
 } from "@/lib/onboarding";
@@ -132,7 +131,6 @@ export default function InboxPage() {
   );
   const activeDigestIdsRef = useRef<string[]>([]);
   const selectedFocusAreas = onboardingAnswers?.selectedFocusAreas ?? [];
-  const focusLabels = getFocusAreaLabels(selectedFocusAreas);
   const selectedFocusOptions = getFocusAreaOptionsById(selectedFocusAreas);
   const isLoading = !hasHydrated || !sessionSnapshot.savedUser || !sessionSnapshot.savedProvider;
   const notificationFrequency = onboardingAnswers?.notificationFrequency ?? "daily";
@@ -427,7 +425,7 @@ export default function InboxPage() {
             {notificationPermission === "default" ? (
               <button
                 onClick={requestNotificationPermission}
-                className="px-2 sm:px-4 py-2 text-xs sm:text-sm bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg font-medium transition whitespace-nowrap"
+                className="px-2 sm:px-4 py-2 text-xs sm:text-sm bg-yellow-100 hover:bg-yellow-200 text-yellow-800 rounded-lg font-medium transition whitespace-nowrap"
               >
                 Enable alerts
               </button>
@@ -444,17 +442,23 @@ export default function InboxPage() {
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Email List */}
+        {/* Email List Sidebar */}
         <div
-          className={`w-full md:w-80 lg:w-96 xl:w-[28rem] 2xl:w-[32rem] bg-white border-r border-gray-200 overflow-y-auto ${
+          className={`w-full md:w-80 lg:w-96 xl:w-[28rem] 2xl:w-[32rem] bg-white border-r border-gray-200 overflow-y-auto flex flex-col ${
             selectedEmailId && "hidden md:flex md:flex-col"
           }`}
         >
-          <div className="p-3 sm:p-4 border-b border-gray-200">
-            <h2 className="font-bold text-gray-900">Inbox</h2>
-            <p className="text-sm text-gray-600">
-              {visibleEmails.length} emails
-            </p>
+          {/* Sidebar Header - Filter Bar & Watchlist */}
+          <div className="p-3 sm:p-4 border-b border-gray-200 space-y-3 flex-shrink-0">
+            {/* Title and Count */}
+            <div>
+              <h2 className="font-bold text-gray-900">Inbox</h2>
+              <p className="text-sm text-gray-600">
+                {visibleEmails.length} of {emails.length} emails
+              </p>
+            </div>
+
+            {/* Filter Pills - Replaces dropdowns */}
             <InboxFilterBar
               activeFilter={activeFilter}
               availableFocusAreas={selectedFocusOptions}
@@ -462,52 +466,31 @@ export default function InboxPage() {
               totalCount={emails.length}
               visibleCount={visibleEmails.length}
             />
+
+            {/* Digest Banner - Single-purpose ribbon */}
             {digestReady && digestEmails.length > 0 ? (
-              <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
-                <p className="font-semibold uppercase tracking-[0.18em] text-emerald-700">
-                  {getCadenceLabel(notificationFrequency)} digest ready
+              <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-2.5 text-xs text-emerald-900">
+                <p className="font-bold uppercase tracking-wide text-emerald-700">
+                  {getCadenceLabel(notificationFrequency)} Digest
                 </p>
-                <p className="mt-1">
-                  {digestEmails.length} email{digestEmails.length === 1 ? "" : "s"} matched your watchlist.
+                <p className="mt-1 text-emerald-800">
+                  {digestEmails.length} email{digestEmails.length === 1 ? "" : "s"} ready
                 </p>
-                <p className="mt-2 line-clamp-3 text-emerald-800">
-                  {digestEmails
-                    .slice(0, 3)
-                    .map((email) => email.subject)
-                    .join(" • ")}
-                </p>
-              </div>
-            ) : null}
-            {focusLabels.length > 0 || onboardingAnswers?.assistantStyle ? (
-              <div className="mt-3 rounded-2xl bg-green-50 p-3 text-xs text-green-900">
-                <p className="font-semibold uppercase tracking-[0.18em] text-green-700">AI watchlist</p>
-                <p className="mt-1">
-                  {focusLabels.join(" • ")}
-                </p>
-                {onboardingAnswers?.assistantStyle ? (
-                  <p className="mt-2 text-green-800">AI help style: {onboardingAnswers.assistantStyle}</p>
-                ) : null}
-                {onboardingAnswers?.notificationFrequency ? (
-                  <p className="mt-2 text-green-800">
-                    Notifications: {onboardingAnswers.notificationFrequency}
-                  </p>
-                ) : null}
-                {notificationPermission === "denied" ? (
-                  <p className="mt-2 text-green-800">
-                    Browser alerts are blocked, so digests stay inside the inbox.
-                  </p>
-                ) : null}
               </div>
             ) : null}
           </div>
-          <EmailList
-            assistantStyle={onboardingAnswers?.assistantStyle}
-            emails={visibleEmails}
-            emailsToAnalyze={emails}
-            emptyMessage={emails.length > 0 ? "No emails match the current filter" : "No emails yet"}
-            onSelectEmail={setSelectedEmailId}
-            selectedId={selectedEmailId}
-          />
+
+          {/* Email List - Scrollable */}
+          <div className="flex-1 overflow-y-auto">
+            <EmailList
+              assistantStyle={onboardingAnswers?.assistantStyle}
+              emails={visibleEmails}
+              emailsToAnalyze={emails}
+              emptyMessage={emails.length > 0 ? "No emails match the current filter" : "No emails yet"}
+              onSelectEmail={setSelectedEmailId}
+              selectedId={selectedEmailId}
+            />
+          </div>
         </div>
 
         {/* Email Detail */}
