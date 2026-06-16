@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { getSessionItem } from "@/lib/client-session";
 import { useEmail } from "@/app/providers";
+import type { OnboardingAnswers } from "@/lib/onboarding";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -66,7 +67,7 @@ function ConnectCompleteContent() {
 
         const data = (await response.json()) as {
           user?: { id: string; email: string; name?: string };
-          onboardingAnswers?: object;
+          onboardingAnswers?: OnboardingAnswers | null;
           hasCompletedOnboarding?: boolean;
         };
 
