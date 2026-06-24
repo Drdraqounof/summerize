@@ -21,6 +21,9 @@ export interface AnalysisResult {
   shouldNotify: boolean;
   matchReason: string;
   isStarred: boolean;
+  actionItems?: Array<{ task: string; deadline?: string }>;
+  extractedDates?: string[];
+  sentiment?: "positive" | "neutral" | "urgent";
 }
 
 export interface ScanPreferences {
@@ -121,10 +124,16 @@ export async function batchAnalyzeEmails(
   "summary": "informative summary max 120 chars — extract key details, action items, or content highlights that go beyond the subject line. Avoid just rephrasing the subject.",
   "shouldNotify": true,
   "matchReason": "specific reason this email is important to the user based on their priorities, or 'General inbox item'",
-  "isStarred": true
+  "isStarred": true,
+  "actionItems": [{"task": "what needs to be done", "deadline": "deadline if mentioned"}],
+  "extractedDates": ["important dates mentioned"],
+  "sentiment": "positive|neutral|urgent"
 }
 
 Star exactly ONE email per batch as the most important email in that folder (set isStarred=true). Use shouldNotify=true only when the email clearly matches the user's watchlist or stated goal.
+For actionItems: extract tasks/deadlines if any exist, leave empty array if none.
+For extractedDates: find any deadlines, meetings, or important dates mentioned.
+For sentiment: analyze tone - is it urgent/negative (urgent), positive, or neutral?
 User watchlist:
 ${promptContext}`,
               },
@@ -145,6 +154,9 @@ ${promptContext}`,
               shouldNotify: Boolean(parsed.shouldNotify),
               matchReason: parsed.matchReason || "General inbox item",
               isStarred: Boolean(parsed.isStarred),
+              actionItems: Array.isArray(parsed.actionItems) ? parsed.actionItems : [],
+              extractedDates: Array.isArray(parsed.extractedDates) ? parsed.extractedDates : [],
+              sentiment: ["positive", "neutral", "urgent"].includes(parsed.sentiment) ? parsed.sentiment : "neutral",
             };
             results[email.id] = result;
             analysisCache.set(email.id, result);
@@ -157,6 +169,9 @@ ${promptContext}`,
             shouldNotify: false,
             matchReason: "General inbox item",
             isStarred: false,
+            actionItems: [],
+            extractedDates: [],
+            sentiment: "neutral",
           };
         }
       }),
@@ -180,6 +195,8 @@ export async function persistAnalysisResult(userId: string, gmailId: string, res
     summary: result.summary,
     analyzedAt: new Date(),
     isFlagged: result.isStarred,
+    actionItems: result.actionItems || [],
+    sentiment: result.sentiment || "neutral",
   };
 
   if (result.category) {

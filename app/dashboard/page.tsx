@@ -4,14 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { useEmail } from "../providers";
+import AppLayout from "../components/AppLayout";
 import { getSessionItem } from "@/lib/client-session";
-import type { DashboardStats, DashboardPeriod } from "@/lib/dashboard-stats";
-
-const PERIODS: { label: string; value: DashboardPeriod }[] = [
-  { label: "This Week", value: "week" },
-  { label: "This Month", value: "month" },
-  { label: "All Time", value: "all" },
-];
+import type { DashboardStats } from "@/lib/dashboard-stats";
 
 const CATEGORY_COLORS: Record<string, string> = {
   Work: "#3b82f6",
@@ -74,7 +69,6 @@ function StatCard({
 export default function DashboardPage() {
   const router = useRouter();
   const { user } = useEmail();
-  const [period, setPeriod] = useState<DashboardPeriod>("week");
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -95,11 +89,11 @@ export default function DashboardPage() {
       setSyncing(true);
       setError(null);
       try {
-        // Sync Gmail emails for the selected period first
+        // Sync Gmail emails first
         const syncRes = await fetch("/api/sync", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userEmail: user, period }),
+          body: JSON.stringify({ userEmail: user }),
         });
         if (!syncRes.ok) {
           const syncData = await syncRes.json().catch(() => ({}));
@@ -108,7 +102,7 @@ export default function DashboardPage() {
         setSyncing(false);
 
         // Then fetch stats from the database
-        const res = await fetch(`/api/dashboard/stats?userEmail=${encodeURIComponent(user)}&period=${period}`);
+        const res = await fetch(`/api/dashboard/stats?userEmail=${encodeURIComponent(user)}&period=all`);
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
           throw new Error(data.error || `Server error (${res.status})`);
@@ -124,7 +118,7 @@ export default function DashboardPage() {
     };
 
     syncAndFetchStats();
-  }, [user, period]);
+  }, [user]);
 
   const pieData = stats
     ? Object.entries(stats.categoryBreakdown).map(([name, value]) => ({ name, value }))
@@ -133,36 +127,16 @@ export default function DashboardPage() {
   const totalCategories = pieData.reduce((sum, d) => sum + d.value, 0);
 
   return (
-    <div className="flex-1 flex flex-col h-screen bg-gray-50">
+    <AppLayout>
       <header className="bg-white border-b border-gray-200 shadow-sm shrink-0">
         <div className="w-full px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3 min-w-0">
-            <button
-              onClick={() => router.push("/inbox")}
-              className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition font-medium shrink-0"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-              <span className="hidden sm:inline">Inbox</span>
-            </button>
-            <div className="w-px h-5 bg-gray-200 shrink-0" />
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-xl shrink-0">{String.fromCodePoint(0x1F4CA)}</span>
               <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate">Dashboard</h1>
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <button
-              onClick={() => router.push("/settings")}
-              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition"
-              title="Settings"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </button>
             {user && (
               <div className="flex items-center gap-2 text-sm text-gray-500 shrink-0">
                 <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-semibold text-emerald-700">
@@ -181,21 +155,6 @@ export default function DashboardPage() {
             <div>
               <h2 className="text-xl font-bold text-gray-900">Overview</h2>
               <p className="text-sm text-gray-500 mt-0.5">Your email activity at a glance</p>
-            </div>
-            <div className="flex gap-1.5 bg-white rounded-xl p-1 border border-gray-200 shadow-sm">
-              {PERIODS.map((p) => (
-                <button
-                  key={p.value}
-                  onClick={() => setPeriod(p.value)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                    period === p.value
-                      ? "bg-emerald-600 text-white shadow-sm"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-                  }`}
-                >
-                  {p.label}
-                </button>
-              ))}
             </div>
           </div>
 
@@ -231,7 +190,7 @@ export default function DashboardPage() {
                   title="Emails Processed"
                   value={stats.emailsProcessed}
                   trend={stats.trend}
-                  subtitle={stats.emailsProcessed > 0 ? `${Math.round(stats.emailsProcessed / (period === "week" ? 7 : period === "month" ? 30 : 90))}/day avg` : ""}
+                  subtitle={stats.emailsProcessed > 0 ? "All time" : ""}
                   icon={
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -387,46 +346,10 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </div>
-
-              {stats.dailyVolume.length > 0 && (
-                <div className="bg-white border border-gray-200 rounded-2xl p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <h3 className="font-semibold text-gray-900">Daily Volume</h3>
-                      <p className="text-sm text-gray-500 mt-0.5">
-                        {stats.dailyVolume.reduce((s, d) => s + d.count, 0)} emails over {stats.dailyVolume.length} days
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-end gap-1.5 h-48">
-                    {stats.dailyVolume.map((day) => {
-                      const maxCount = Math.max(...stats.dailyVolume.map((d) => d.count), 1);
-                      const height = (day.count / maxCount) * 100;
-                      return (
-                        <div
-                          key={day.date}
-                          className="flex-1 flex flex-col items-center gap-1.5 group relative"
-                        >
-                          <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none z-10">
-                            {day.count} emails
-                          </div>
-                          <div
-                            className="w-full bg-gradient-to-t from-emerald-500 to-emerald-400 rounded-t-lg transition-all hover:from-emerald-600 hover:to-emerald-500 cursor-pointer"
-                            style={{ height: `${height}%`, minHeight: day.count > 0 ? 4 : 0 }}
-                          />
-                          <span className="text-[10px] text-gray-400 w-full text-center truncate">
-                            {new Date(day.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
             </>
           )}
         </div>
       </div>
-    </div>
+    </AppLayout>
   );
 }

@@ -19,10 +19,12 @@ const stagger = {
 
 export default function Home() {
   const router = useRouter();
-  const { isLoggedIn } = useEmail();
+  const { isLoggedIn, isHydrated } = useEmail();
 
   // Keep the landing page available for logged-out users and only resume the inbox for an active session.
   useEffect(() => {
+    if (!isHydrated) return;
+
     console.log("📄 PAGE: Home page loaded");
     console.log("📄 isLoggedIn:", isLoggedIn);
     console.log("📄 sessionStorage emailUser:", getSessionItem("emailUser"));
@@ -31,7 +33,7 @@ export default function Home() {
       console.log("✅ User already logged in, redirecting to /inbox from home page");
       router.replace("/inbox");
     }
-  }, [isLoggedIn, router]);
+  }, [isLoggedIn, isHydrated, router]);
 
   return (
     <div className="relative min-h-screen overflow-x-clip" style={{ backgroundColor: "#f0ffea" }}>

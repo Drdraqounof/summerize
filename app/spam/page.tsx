@@ -6,10 +6,11 @@ import { type Email, useEmail } from "../providers";
 import EmailList from "../components/EmailList";
 import EmailDetail from "../components/EmailDetail";
 import { getSessionItem } from "@/lib/client-session";
+import AppLayout from "../components/AppLayout";
 
 export default function SpamPage() {
   const router = useRouter();
-  const { user, spamEmails, connectionProvider, connectedAccount, loadSpamEmails, logout } = useEmail();
+  const { user, spamEmails, connectionProvider, connectedAccount, loadSpamEmails } = useEmail();
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [hasHydrated, setHasHydrated] = useState(false);
   const [sessionSnapshot, setSessionSnapshot] = useState<{ savedProvider: string | null; savedUser: string | null }>({
@@ -55,13 +56,8 @@ export default function SpamPage() {
     );
   }
 
-  const handleLogout = () => {
-    logout();
-    router.replace("/login");
-  };
-
   return (
-    <div className="flex-1 flex flex-col h-screen bg-gray-50">
+    <AppLayout>
       <header className="bg-white border-b border-gray-200 shadow-sm">
         <div className="w-full px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -73,20 +69,6 @@ export default function SpamPage() {
                 <p className="text-xs text-gray-500">{connectedAccount.email}</p>
               ) : null}
             </div>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <button
-              onClick={() => router.push("/inbox")}
-              className="px-2 sm:px-4 py-2 text-xs sm:text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg font-medium transition whitespace-nowrap"
-            >
-              Back to Inbox
-            </button>
-            <button
-              onClick={handleLogout}
-              className="px-2 sm:px-4 py-2 text-xs sm:text-sm bg-red-100 hover:bg-red-200 text-red-700 rounded-lg font-medium transition"
-            >
-              Logout
-            </button>
           </div>
         </div>
       </header>
@@ -132,6 +114,6 @@ export default function SpamPage() {
           </div>
         )}
       </div>
-    </div>
+    </AppLayout>
   );
 }

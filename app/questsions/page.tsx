@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useEmail } from "../providers";
 import { getSessionItem } from "@/lib/client-session";
@@ -63,6 +63,7 @@ const notificationOptions = [
 export default function QuestionsPage() {
 	const router = useRouter();
 	const { isLoggedIn, onboardingAnswers, saveOnboardingAnswers } = useEmail();
+	const justSubmitted = useRef(false);
 	const [step, setStep] = useState(1);
 	const [hasUsedAiBefore, setHasUsedAiBefore] = useState(onboardingAnswers?.hasUsedAiBefore ?? "");
 	const [selectedFocusAreas, setSelectedFocusAreas] = useState<string[]>(
@@ -84,7 +85,7 @@ export default function QuestionsPage() {
 	}, [isLoggedIn, router]);
 
 	useEffect(() => {
-		if (onboardingAnswers) {
+		if (onboardingAnswers && justSubmitted.current) {
 			window.location.href = "/api/google/auth";
 		}
 	}, [onboardingAnswers]);

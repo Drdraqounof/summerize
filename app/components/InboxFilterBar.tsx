@@ -2,7 +2,7 @@
 
 import { type FocusAreaOption } from "@/lib/onboarding";
 
-export type InboxFilterValue = "starred" | string;
+export type InboxFilterValue = "important" | string;
 
 interface InboxFilterBarProps {
   activeFilter: InboxFilterValue;
@@ -20,7 +20,7 @@ export default function InboxFilterBar({
   visibleCount,
 }: InboxFilterBarProps) {
   const filterButtons: Array<{ label: string; value: InboxFilterValue }> = [
-    { label: "Starred", value: "starred" },
+    { label: "Important", value: "important" },
     ...availableFocusAreas.map((option) => ({
       label: option.label,
       value: option.id,

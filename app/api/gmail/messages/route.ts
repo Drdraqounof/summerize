@@ -31,6 +31,7 @@ interface GmailPart {
 
 interface GmailMessage {
   id: string;
+  threadId: string;
   internalDate: string;
   payload?: GmailPart & { headers?: GmailHeader[] };
 }
@@ -119,12 +120,13 @@ export async function GET(request: NextRequest) {
             summary: true,
             analyzedAt: true,
             gmailLabel: true,
+            threadId: true,
             category: { select: { category: true } },
           },
         });
 
         return NextResponse.json({
-          emails: dbEmails.map((e: { gmailId: string | null; from: string; subject: string; preview: string | null; body: string | null; receivedAt: Date; summary: string | null; analyzedAt: Date | null; gmailLabel: string; category: { category: string } | null }) => ({
+          emails: dbEmails.map((e: { gmailId: string | null; from: string; subject: string; preview: string | null; body: string | null; receivedAt: Date; summary: string | null; analyzedAt: Date | null; gmailLabel: string; threadId: string | null; category: { category: string } | null }) => ({
             id: e.gmailId,
             accountEmail: email,
             from: e.from,
@@ -135,6 +137,7 @@ export async function GET(request: NextRequest) {
             summary: e.summary ?? undefined,
             analyzed: Boolean(e.analyzedAt),
             gmailLabel: e.gmailLabel,
+            threadId: e.threadId,
           })),
           total: dbEmails.length,
           truncated: result.truncated,
@@ -200,7 +203,7 @@ export async function GET(request: NextRequest) {
 
     const messageDetails = await Promise.all(emailPromises);
 
-    const transformedEmails = messageDetails
+        const transformedEmails = messageDetails
       .filter((msg): msg is GmailMessage => msg !== null)
       .map((msg) => {
         const headers = msg.payload?.headers || [];
@@ -218,6 +221,7 @@ export async function GET(request: NextRequest) {
 
         return {
           id: msg.id,
+          threadId: msg.threadId,
           accountEmail: email,
           from,
           subject,
@@ -261,6 +265,8 @@ export async function GET(request: NextRequest) {
                   cc: emailRecord.cc,
                   preview: emailRecord.preview,
                   body: emailRecord.body,
+                  bodyHtml: emailRecord.bodyHtml,
+                  threadId: emailRecord.threadId,
                   receivedAt: emailRecord.receivedAt,
                   userId: user.id,
                   gmailLabel: emailRecord.gmailLabel,
@@ -274,6 +280,8 @@ export async function GET(request: NextRequest) {
                   cc: emailRecord.cc,
                   preview: emailRecord.preview,
                   body: emailRecord.body,
+                  bodyHtml: emailRecord.bodyHtml,
+                  threadId: emailRecord.threadId,
                   receivedAt: emailRecord.receivedAt,
                   gmailLabel: emailRecord.gmailLabel,
                 },
@@ -296,6 +304,7 @@ export async function GET(request: NextRequest) {
 
               return {
                 id: emailRecord.id,
+                threadId: emailRecord.threadId,
                 accountEmail: email,
                 from: persisted.from,
                 subject: persisted.subject,
@@ -319,6 +328,7 @@ export async function GET(request: NextRequest) {
                 console.warn("[Gmail API] Skipping notification field persistence until Prisma schema is applied.");
                 return {
                   id: emailRecord.id,
+                  threadId: emailRecord.threadId,
                   accountEmail: email,
                   from: emailRecord.from,
                   subject: emailRecord.subject,
@@ -336,6 +346,7 @@ export async function GET(request: NextRequest) {
         )).filter(<T>(x: T): x is NonNullable<T> => x != null)
       : transformedEmails.map((emailRecord) => ({
           id: emailRecord.id,
+          threadId: emailRecord.threadId,
           accountEmail: email,
           from: emailRecord.from,
           subject: emailRecord.subject,

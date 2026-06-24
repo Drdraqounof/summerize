@@ -32,6 +32,7 @@ interface GmailPart {
 
 interface GmailMessage {
   id: string;
+  threadId: string;
   internalDate: string;
   payload?: GmailPart & { headers?: GmailHeader[] };
 }
@@ -217,6 +218,7 @@ export async function syncGmailLabel(
 
       const record = {
         gmailId: msg.id,
+        threadId: msg.threadId,
         userId,
         subject: getHeader("Subject") || "(No Subject)",
         from: formatSender(getHeader("From")),
@@ -254,6 +256,7 @@ export async function syncGmailLabel(
             receivedAt: record.receivedAt,
             userId: record.userId,
             gmailLabel: record.gmailLabel,
+            threadId: record.threadId,
           },
           create: record,
           select: { id: true },

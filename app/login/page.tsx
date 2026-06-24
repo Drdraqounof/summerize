@@ -198,6 +198,18 @@ export default function LoginPage() {
             >
               {loading ? (mode === "signin" ? "Signing in..." : "Creating account...") : mode === "signin" ? "Sign In" : "Create Account"}
             </button>
+
+            {mode === "signin" && (
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => router.push("/forgot-password")}
+                  className="text-sm font-medium text-green-600 hover:text-green-700 transition"
+                >
+                  Forgot your password?
+                </button>
+              </div>
+            )}
           </div>
 
           <p className="mt-6 text-center text-sm text-slate-600">

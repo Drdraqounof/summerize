@@ -34,6 +34,7 @@ export interface Email {
   shouldNotify?: boolean;
   matchReason?: string;
   isStarred?: boolean;
+  threadId?: string;
 }
 
 interface ConnectedAccount {
@@ -44,6 +45,7 @@ interface ConnectedAccount {
 
 interface GmailApiEmail {
   id: string;
+  threadId?: string;
   from: string;
   subject: string;
   preview: string;
@@ -327,6 +329,7 @@ export function EmailProvider({ children }: { children: ReactNode }) {
         shouldNotify: emailRecord.shouldNotify,
         matchReason: emailRecord.matchReason,
         isStarred: emailRecord.isStarred,
+        threadId: emailRecord.threadId,
       }));
 
       // Sort starred first, then by timestamp descending
@@ -382,6 +385,7 @@ export function EmailProvider({ children }: { children: ReactNode }) {
         shouldNotify: record.shouldNotify,
         matchReason: record.matchReason,
         isStarred: record.isStarred,
+        threadId: record.threadId,
       }));
 
       // Sort starred first, then by timestamp descending

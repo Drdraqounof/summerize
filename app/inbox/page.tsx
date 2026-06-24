@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { type Email, useEmail } from "../providers";
 import EmailList from "../components/EmailList";
 import EmailDetail from "../components/EmailDetail";
+import ConversationSidebar from "../components/ConversationSidebar";
 import InboxFilterBar, { type InboxFilterValue } from "../components/InboxFilterBar";
+import AppLayout from "../components/AppLayout";
 import { getSessionItem } from "@/lib/client-session";
 import {
   getFocusAreaOptionsById,
@@ -104,19 +106,19 @@ function getDefaultInboxFilter(
   selectedFocusAreas: string[],
 ): InboxFilterValue {
   if (assistantStyle === "priority-only") {
-    return "starred";
+    return "important";
   }
 
   if (selectedFocusAreas.length > 0) {
     return selectedFocusAreas[0];
   }
 
-  return "starred";
+  return "important";
 }
 
 export default function InboxPage() {
   const router = useRouter();
-  const { user, logout, emails, connectionProvider, connectedAccount, onboardingAnswers } = useEmail();
+  const { user, emails, connectionProvider, connectedAccount, onboardingAnswers } = useEmail();
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [digestEmails, setDigestEmails] = useState<Email[]>([]);
   const [digestReady, setDigestReady] = useState(false);
@@ -125,7 +127,7 @@ export default function InboxPage() {
     savedUser: null,
   });
   const [hasHydrated, setHasHydrated] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<InboxFilterValue>("starred");
+  const [activeFilter, setActiveFilter] = useState<InboxFilterValue>("important");
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "unsupported">(
     "unsupported"
   );
@@ -232,7 +234,7 @@ export default function InboxPage() {
 
     setActiveFilter((currentFilter) => {
       const availableFilters = new Set<InboxFilterValue>([
-        "starred",
+        "important",
         ...selectedFocusAreas,
       ]);
       const storedFilter = readStoredInboxFilter();
@@ -332,8 +334,8 @@ export default function InboxPage() {
   }, [emails, notificationFrequency]);
 
   const visibleEmails = emails.filter((email) => {
-    if (activeFilter === "starred") {
-      return Boolean(email.shouldNotify);
+    if (activeFilter === "important") {
+      return Boolean(email.isStarred);
     }
 
     const focusOption = selectedFocusOptions.find((option) => option.id === activeFilter);
@@ -369,11 +371,6 @@ export default function InboxPage() {
     );
   }
 
-  const handleLogout = () => {
-    logout();
-    router.replace("/login");
-  };
-
   const requestNotificationPermission = async () => {
     if (typeof window === "undefined" || !("Notification" in window)) {
       return;
@@ -384,21 +381,11 @@ export default function InboxPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-screen bg-gray-50">
+    <AppLayout>
       {/* Header */}
       <header className="bg-white border-b border-gray-200 shadow-sm shrink-0">
         <div className="w-full px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <button
-              onClick={() => router.push("/dashboard")}
-              className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition font-medium shrink-0"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-              <span className="hidden sm:inline">Dashboard</span>
-            </button>
-            <div className="w-px h-5 bg-gray-200 shrink-0" />
             <div className="text-2xl shrink-0">{String.fromCodePoint(0x1F4E7)}</div>
             <div className="min-w-0">
               <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate">Email Checker</h1>
@@ -406,22 +393,6 @@ export default function InboxPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
-            <button
-              onClick={() => router.push("/spam")}
-              className="px-2 sm:px-4 py-2 text-xs sm:text-sm bg-orange-100 hover:bg-orange-200 text-orange-700 rounded-lg font-medium transition whitespace-nowrap"
-            >
-              Spam
-            </button>
-            <button
-              onClick={() => router.push("/settings")}
-              className="px-2 sm:px-4 py-2 text-xs sm:text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition whitespace-nowrap"
-            >
-              <svg className="w-4 h-4 inline-block -mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <span className="hidden sm:inline ml-1">Settings</span>
-            </button>
             {notificationPermission === "default" ? (
               <button
                 onClick={requestNotificationPermission}
@@ -430,12 +401,6 @@ export default function InboxPage() {
                 Enable alerts
               </button>
             ) : null}
-            <button
-              onClick={handleLogout}
-              className="px-2 sm:px-4 py-2 text-xs sm:text-sm bg-red-100 hover:bg-red-200 text-red-700 rounded-lg font-medium transition"
-            >
-              Logout
-            </button>
           </div>
         </div>
       </header>
@@ -493,10 +458,10 @@ export default function InboxPage() {
           </div>
         </div>
 
-        {/* Email Detail */}
+        {/* Email Detail + Sidebar */}
         {selectedEmail ? (
-          <div className={`flex-1 overflow-y-auto ${!selectedEmailId && "hidden md:flex md:flex-col"}`}>
-            <div className="md:hidden p-4 bg-white border-b border-gray-200">
+          <div className={`flex flex-1 overflow-hidden ${!selectedEmailId && "hidden md:flex md:flex-col"}`}>
+            <div className="md:hidden absolute top-0 left-0 right-0 p-4 bg-white border-b border-gray-200 z-10">
               <button
                 onClick={() => setSelectedEmailId(null)}
                 className="text-blue-600 font-medium"
@@ -504,7 +469,11 @@ export default function InboxPage() {
                 ← Back to Inbox
               </button>
             </div>
-            <EmailDetail assistantStyle={onboardingAnswers?.assistantStyle} email={selectedEmail} />
+            <div className="flex-1 overflow-y-auto">
+              <div className="md:hidden pt-16" />
+              <EmailDetail assistantStyle={onboardingAnswers?.assistantStyle} email={selectedEmail} />
+            </div>
+            <ConversationSidebar threadId={selectedEmail.threadId} userEmail={user ?? undefined} />
           </div>
         ) : (
           <div className="hidden md:flex flex-1 items-center justify-center bg-gray-50">
@@ -514,6 +483,6 @@ export default function InboxPage() {
           </div>
         )}
       </div>
-    </div>
+    </AppLayout>
   );
 }

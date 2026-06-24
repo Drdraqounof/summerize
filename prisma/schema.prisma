@@ -24,12 +24,14 @@ model User {
   createdAt         DateTime                 @default(now())
   updatedAt         DateTime                 @updatedAt
 
-  emails            Email[]
-  rules             CustomRule[]
-  preferences       UserPreference?
-  aiInteractions    AIInteraction[]
-  activities        UserActivity[]
-  quotas            UserQuota[]
+  emails              Email[]
+  rules               CustomRule[]
+  preferences         UserPreference?
+  aiInteractions      AIInteraction[]
+  activities          UserActivity[]
+  quotas              UserQuota[]
+  passwordResets      PasswordReset[]
+  contacts            Contact[]
 
   @@index([email])
 }
@@ -54,6 +56,21 @@ model UserPreference {
   @@index([userId])
 }
 
+// ========== PASSWORD RESET ==========
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
 // ========== EMAILS ==========
 
 model Email {
@@ -67,6 +84,7 @@ model Email {
   cc         String?
   preview    String?
   body       String?
+  bodyHtml   String?
   receivedAt DateTime
   analyzedAt DateTime?
   sentiment  String?
@@ -84,12 +102,38 @@ model Email {
   user       User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
   category   EmailCategoryRecord?
   aiLogs     AIInteraction[]
+  threadId   String?                  // Gmail conversation thread ID
+  actionItems Json?                   // Extracted action items: [{task, deadline, priority}]
 
   @@index([userId])
   @@index([gmailId])
   @@index([gmailLabel])
   @@index([isRead])
   @@index([isSpam])
+  @@index([userId, threadId])
+}
+
+model Contact {
+  id                String   @id @default(cuid())
+  userId            String
+  senderEmail       String   // The contact's email address
+  displayName       String?  // Parsed from email header
+  firstEmailAt      DateTime @default(now())
+  lastEmailAt       DateTime @updatedAt
+  emailCount        Int      @default(1)
+  importance        Int      @default(5) // 0-10 scale
+  sentimentScore    Float    @default(0) // Average sentiment (0-1 scale)
+  avgResponseTime   Int?     // Average response time in minutes
+  lastSentiment     String?  // last|positive|negative|urgent
+  replyRate         Int      @default(0) // Percentage (0-100)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, senderEmail])
+  @@unique([userId, senderEmail])
 }
 
 model EmailCategoryRecord {
