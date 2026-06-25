@@ -53,7 +53,7 @@ export default function EmailList({
   onSelectEmail,
   selectedId,
 }: EmailListProps) {
-  const { batchAnalyzeEmails } = useEmail();
+  const { batchAnalyzeEmails, deleteEmail } = useEmail();
   const batchedRef = useRef(false);
   const showSummaryFirst = assistantStyle === "smart-summaries";
 
@@ -160,6 +160,16 @@ export default function EmailList({
                 {new Date(email.timestamp).toLocaleDateString()}
               </p>
             </div>
+
+            <span
+              onClick={(e) => { e.stopPropagation(); deleteEmail(email.id); }}
+              className="shrink-0 p-1.5 rounded-full text-gray-400 hover:text-red-600 hover:bg-red-50 transition cursor-pointer"
+              title="Delete email"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </span>
           </div>
         </button>
       ))}

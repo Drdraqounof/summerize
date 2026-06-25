@@ -29,7 +29,70 @@ export default function ContactsPage() {
     savedUser: string | null;
     savedProvider: string | null;
   }>({ savedUser: null, savedProvider: null });
-  const [contacts, setContacts] = useState<ContactSummary[]>([]);
+  const mockContacts: ContactSummary[] = [
+    {
+      id: "mock-1",
+      senderEmail: "alex.chen@acmecorp.com",
+      displayName: "Alex Chen",
+      emailCount: 24,
+      importance: 8,
+      sentimentScore: 0.85,
+      sentiment: "positive",
+      lastEmailAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+      avgResponseTime: 45,
+      replyRate: 92,
+    },
+    {
+      id: "mock-2",
+      senderEmail: "sarah.miller@startup.io",
+      displayName: "Sarah Miller",
+      emailCount: 18,
+      importance: 7,
+      sentimentScore: 0.72,
+      sentiment: "positive",
+      lastEmailAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+      avgResponseTime: 120,
+      replyRate: 78,
+    },
+    {
+      id: "mock-3",
+      senderEmail: "david.kim@design.co",
+      displayName: "David Kim",
+      emailCount: 12,
+      importance: 5,
+      sentimentScore: 0.5,
+      sentiment: "neutral",
+      lastEmailAt: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
+      avgResponseTime: 360,
+      replyRate: 55,
+    },
+    {
+      id: "mock-4",
+      senderEmail: "priya.patel@financegroup.com",
+      displayName: "Priya Patel",
+      emailCount: 9,
+      importance: 9,
+      sentimentScore: 0.9,
+      sentiment: "urgent",
+      lastEmailAt: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
+      avgResponseTime: 20,
+      replyRate: 98,
+    },
+    {
+      id: "mock-5",
+      senderEmail: "james.wilson@techcorp.io",
+      displayName: "James Wilson",
+      emailCount: 6,
+      importance: 3,
+      sentimentScore: 0.3,
+      sentiment: "neutral",
+      lastEmailAt: new Date(Date.now() - 1000 * 60 * 60 * 168).toISOString(),
+      avgResponseTime: null,
+      replyRate: 33,
+    },
+  ];
+
+  const [contacts, setContacts] = useState<ContactSummary[]>(mockContacts);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"emailCount" | "name" | "lastEmailAt">("emailCount");
@@ -59,10 +122,10 @@ export default function ContactsPage() {
       const res = await fetch(`/api/contacts?${params}`);
       if (!res.ok) throw new Error("Failed to fetch contacts");
       const data = await res.json();
-      setContacts(data.contacts);
+      setContacts(data.contacts.length > 0 ? data.contacts : mockContacts);
     } catch (err) {
       console.error("[ContactsPage] Error:", err);
-      setContacts([]);
+      setContacts(mockContacts);
     } finally {
       setLoading(false);
     }
@@ -81,6 +144,11 @@ export default function ContactsPage() {
       </div>
     );
   }
+
+  const deleteContact = (id: string) => {
+    setContacts((prev) => prev.filter((c) => c.id !== id));
+    if (selectedId === id) setSelectedId(null);
+  };
 
   const selectedContact = contacts.find((c) => c.id === selectedId) ?? null;
 
@@ -193,6 +261,15 @@ export default function ContactsPage() {
                         {contact.replyRate}%
                       </span>
                     </div>
+                    <span
+                      onClick={(e) => { e.stopPropagation(); deleteContact(contact.id); }}
+                      className="shrink-0 p-1.5 rounded-full text-gray-400 hover:text-red-600 hover:bg-red-50 transition cursor-pointer"
+                      title="Delete contact"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </span>
                   </button>
                 ))}
               </div>

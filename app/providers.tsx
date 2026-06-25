@@ -78,6 +78,7 @@ interface EmailContextType {
   register: (email: string, password: string, name?: string) => Promise<AuthResult>;
   logout: () => void;
   markAsRead: (id: string) => void;
+  deleteEmail: (id: string) => void;
   addEmail: (email: Email) => void;
   analyzeEmail: (id: string) => Promise<void>;
   batchAnalyzeEmails: (emails: Email[]) => Promise<void>;
@@ -93,22 +94,112 @@ const EmailContext = createContext<EmailContextType | undefined>(undefined);
 
 const sampleEmails: Email[] = [
   {
-    id: "1",
-    from: "noreply@example.com",
-    subject: "Welcome to Mailturtle",
-    preview: "Thanks for creating your account...",
-    body: "Welcome to Mailturtle. Connect your inbox to start AI-powered triage.",
-    timestamp: new Date(Date.now() - 1000 * 60 * 5),
+    id: "sample-1",
+    from: "alex.chen@acmecorp.com",
+    subject: "Q3 Budget Review — feedback needed",
+    preview: "Hey, I've attached the draft budget for Q3. Please take a look and share your feedback before Friday.",
+    body: "Hey,\n\nI've attached the draft budget for Q3. Please take a look and share your feedback before Friday.\n\nThe marketing team has requested an additional $15k for the campaign push in August. Let me know if that works within our targets.\n\nBest,\nAlex Chen\nAcme Corp Finance",
+    timestamp: new Date(Date.now() - 1000 * 60 * 15),
     read: false,
+    category: "Work",
+    isStarred: true,
   },
   {
-    id: "2",
-    from: "notifications@example.com",
-    subject: "Your account is ready",
-    preview: "Your workspace is ready for onboarding.",
-    body: "Your account has been created successfully. Continue to onboarding to set up your AI preferences.",
+    id: "sample-2",
+    from: "stripe@notify.com",
+    subject: "Your invoice for May 2026 is ready",
+    preview: "Your Stripe invoice for May 2026 is now available. Total amount: $299.00.",
+    body: "Hi there,\n\nYour Stripe invoice for May 2026 is now available.\n\nAmount: $299.00\nDue date: June 15, 2026\n\nView your invoice at: https://dashboard.stripe.com/invoices\n\nThanks,\nStripe Billing",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
+    read: false,
+    category: "Finance",
+    isStarred: true,
+  },
+  {
+    id: "sample-3",
+    from: "sarah.miller@startup.io",
+    subject: "Updated wireframes for the dashboard",
+    preview: "We've made some changes based on your feedback. The new navigation layout is much cleaner.",
+    body: "Hey,\n\nWe've made some changes based on your feedback. The new navigation layout is much cleaner.\n\nKey changes:\n- Moved the analytics tab to the top nav\n- Added quick action buttons in the sidebar\n- Reduced clutter in the main view\n\nLet me know what you think!\n\nSarah Miller\nDesign Lead, Startup.io",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24),
+    read: false,
+    category: "Work",
+    isStarred: false,
+  },
+  {
+    id: "sample-4",
+    from: "github@noreply.com",
+    subject: "[summerize] PR #127: Fix email sync timeout",
+    preview: "Hey, can you review this PR when you get a chance? It addresses the timeout issue in the Gmail sync.",
+    body: "Hey,\n\nCan you review this PR when you get a chance?\n\nIt addresses the timeout issue in the Gmail sync worker. The root cause was an unhandled promise rejection when the Gmail API takes longer than 30s to respond.\n\nChanges:\n- Added configurable timeout parameter\n- Added retry logic with exponential backoff\n- Improved error logging\n\nCheers,\nDavid",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 48),
+    read: true,
+    category: "Dev",
+    isStarred: true,
+  },
+  {
+    id: "sample-5",
+    from: "notifications@linkedin.com",
+    subject: "You have 3 new connection requests",
+    preview: "Connect with Priya Patel, James Wilson, and 1 other person who viewed your profile.",
+    body: "Hi,\n\nYou have 3 new connection requests:\n\n1. Priya Patel — Product Manager at Finance Group\n2. James Wilson — Software Engineer at TechCorp\n3. Morgan Lee — Recruiter at TalentHub\n\nView your pending invitations at LinkedIn.\n\n— LinkedIn",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 72),
+    read: true,
+    category: "Updates",
+    isStarred: false,
+  },
+];
+
+const sampleSpamEmails: Email[] = [
+  {
+    id: "sspam-1",
+    from: "winner@lottery-intl.com",
+    subject: "YOU WON $5,000,000!!!",
+    preview: "Congratulations! You have been selected as the grand prize winner of the International Lottery.",
+    body: "CONGRATULATIONS!!!\n\nYou have been selected as the grand prize winner of the International Lottery. You have won $5,000,000 USD.\n\nTo claim your prize, please send your bank details and a processing fee of $250 to the following address...\n\nAct now! This offer expires soon!",
     timestamp: new Date(Date.now() - 1000 * 60 * 30),
     read: false,
+    category: "Spam",
+  },
+  {
+    id: "sspam-2",
+    from: "admin@secure-bank-verify.com",
+    subject: "Urgent: Your account has been compromised",
+    preview: "We detected suspicious activity on your account. Click here to verify your identity immediately.",
+    body: "Dear Customer,\n\nWe have detected unusual activity on your banking account. For your security, your access has been limited.\n\nPlease click the link below to verify your identity and restore full access:\n\n[Verify My Account]\n\nFailure to verify within 24 hours will result in permanent account closure.\n\nSecure Bank Verification Team",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4),
+    read: false,
+    category: "Spam",
+  },
+  {
+    id: "sspam-3",
+    from: "deals@cheap-pharma-4u.biz",
+    subject: "RE: Your prescription order — 80% OFF",
+    preview: "Get the medications you need at unbeatable prices. No prescription required!",
+    body: "Hello,\n\nAre you tired of paying high prices for your medications?\n\nWe offer the same FDA-approved drugs at 80% less than your local pharmacy.\n\nNo prescription needed! Discreet shipping right to your door.\n\nOrder now and get FREE shipping!\n\nCheap Pharma 4U",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 12),
+    read: false,
+    category: "Spam",
+  },
+  {
+    id: "sspam-4",
+    from: "ceo@urgent-memo.xyz",
+    subject: "URGENT BUSINESS PROPOSAL — REPLY NOW",
+    preview: "I am looking for a reliable partner to transfer $25M out of my country. Please respond urgently.",
+    body: "Dear Friend,\n\nI am Mr. Ibrahim Sani, the Chief Financial Officer of the National Petroleum Corporation of Nigeria.\n\nI am seeking your assistance to transfer $25,000,000 USD out of my country into your account. The funds are currently trapped in a local bank due to bureaucratic restrictions.\n\nIn exchange for your help, I offer you 30% of the total amount.\n\nThis is a completely legal and risk-free transaction. Please reply urgently with your bank details.\n\nBest regards,\nMr. Ibrahim Sani",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 48),
+    read: true,
+    category: "Spam",
+  },
+  {
+    id: "sspam-5",
+    from: "newsletter@growth-hack-pro.com",
+    subject: "Get 10,000 followers in 24 hours!!!",
+    preview: "Our proven system delivers real followers, likes, and engagement. Guaranteed or your money back!",
+    body: "Tired of struggling to grow your social media?\n\nOur exclusive growth hacking system delivers:\n• 10,000 real followers in 24 hours\n• 5,000+ likes per post\n• Verified accounts only\n• No bots, no fake profiles\n\nUsed by over 50,000 influencers worldwide.\n\nClick here to start your FREE trial today!\n\nGrowth Hack Pro\nUnlock your potential",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 72),
+    read: true,
+    category: "Spam",
   },
 ];
 
@@ -118,7 +209,7 @@ function dedupeEmailsById<T extends { id: string }>(items: T[]): T[] {
 
 export function EmailProvider({ children }: { children: ReactNode }) {
   const [emails, setEmails] = useState<Email[]>([]);
-  const [spamEmails, setSpamEmails] = useState<Email[]>([]);
+  const [spamEmails, setSpamEmails] = useState<Email[]>(sampleSpamEmails);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<string | null>(null);
   const [onboardingAnswers, setOnboardingAnswers] = useState<OnboardingAnswers | null>(null);
@@ -143,6 +234,11 @@ export function EmailProvider({ children }: { children: ReactNode }) {
 
     if (savedEmails) {
       setEmails(dedupeEmailsById(JSON.parse(savedEmails) as Email[]));
+    }
+
+    const savedSpam = getSessionItem("spamEmails");
+    if (savedSpam) {
+      setSpamEmails(dedupeEmailsById(JSON.parse(savedSpam) as Email[]));
     }
 
     if (savedAnswers) {
@@ -233,6 +329,7 @@ export function EmailProvider({ children }: { children: ReactNode }) {
     setConnectedAccount(null);
     removeSessionItem("emailUser");
     removeSessionItem("emails");
+    removeSessionItem("spamEmails");
     removeSessionItem("onboardingAnswers");
     removeSessionItem("emailConnectionProvider");
     removeSessionItem("connectedAccount");
@@ -249,6 +346,16 @@ export function EmailProvider({ children }: { children: ReactNode }) {
       e.id === id ? { ...e, read: true } : e
     ));
     setSpamEmails(updatedSpam);
+  };
+
+  const deleteEmail = (id: string) => {
+    const updated = emails.filter((e) => e.id !== id);
+    setEmails(updated);
+    setSessionItem("emails", JSON.stringify(updated));
+
+    const updatedSpam = spamEmails.filter((e) => e.id !== id);
+    setSpamEmails(updatedSpam);
+    setSessionItem("spamEmails", JSON.stringify(updatedSpam));
   };
 
   const addEmail = (email: Email) => {
@@ -395,6 +502,7 @@ export function EmailProvider({ children }: { children: ReactNode }) {
         return b.timestamp.getTime() - a.timestamp.getTime();
       });
       setSpamEmails(gmailEmails);
+      setSessionItem("spamEmails", JSON.stringify(gmailEmails));
       console.log("[Providers] Successfully loaded", gmailEmails.length, "spam/trash emails");
     } catch (error) {
       console.error("[Providers] Error loading spam emails:", error);
@@ -588,6 +696,7 @@ export function EmailProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         markAsRead,
+        deleteEmail,
         addEmail,
         analyzeEmail,
         batchAnalyzeEmails,

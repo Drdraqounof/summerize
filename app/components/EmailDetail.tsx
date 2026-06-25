@@ -16,7 +16,7 @@ const categoryColors: { [key: string]: string } = {
 };
 
 export default function EmailDetail({ assistantStyle, email }: EmailDetailProps) {
-  const { markAsRead } = useEmail();
+  const { markAsRead, deleteEmail } = useEmail();
   const showSummaryFirst = assistantStyle === "smart-summaries";
   const showActionReasonFirst = assistantStyle === "action-items";
 
@@ -66,7 +66,7 @@ export default function EmailDetail({ assistantStyle, email }: EmailDetailProps)
             </svg>
             Archive
           </button>
-          <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-red-50 transition text-red-700 text-sm">
+          <button onClick={() => deleteEmail(email.id)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-red-50 transition text-red-700 text-sm">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
@@ -130,7 +130,7 @@ export default function EmailDetail({ assistantStyle, email }: EmailDetailProps)
         <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition">
           Reply
         </button>
-        <button className="w-full bg-gray-200 hover:bg-gray-300 text-gray-900 font-semibold py-2 px-4 rounded-lg transition">
+        <button onClick={() => deleteEmail(email.id)} className="w-full bg-gray-200 hover:bg-gray-300 text-gray-900 font-semibold py-2 px-4 rounded-lg transition">
           Delete
         </button>
       </div>
