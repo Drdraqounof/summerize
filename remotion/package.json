@@ -1,0 +1,19 @@
+{
+  "name": "mailturtle-walkthrough",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "remotion studio",
+    "build": "remotion render src/Root.tsx Walkthrough out/video.mp4",
+    "preview": "remotion preview src/Root.tsx Walkthrough"
+  },
+  "dependencies": {
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "remotion": "^4.0.0",
+    "@remotion/cli": "^4.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/react": "^18.3.0"
+  }
+}

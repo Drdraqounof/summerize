@@ -336,6 +336,9 @@ export function EmailProvider({ children }: { children: ReactNode }) {
   };
 
   const markAsRead = (id: string) => {
+    const exists = emails.some((e) => e.id === id) || spamEmails.some((e) => e.id === id);
+    if (!exists) return;
+
     const updated = dedupeEmailsById(emails.map((e) =>
       e.id === id ? { ...e, read: true } : e
     ));

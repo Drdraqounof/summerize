@@ -1,6 +1,7 @@
 const SESSION_KEYS = [
   "emailUser",
   "emails",
+  "spamEmails",
   "onboardingAnswers",
   "emailConnectionProvider",
   "connectedAccount",

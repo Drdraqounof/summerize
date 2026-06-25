@@ -6,6 +6,7 @@ import { useEffect } from "react";
 interface EmailDetailProps {
   assistantStyle?: string;
   email: Email;
+  onDelete?: (id: string) => void;
 }
 
 const categoryColors: { [key: string]: string } = {
@@ -15,8 +16,9 @@ const categoryColors: { [key: string]: string } = {
   Alerts: "bg-red-50 border-red-200 text-red-900",
 };
 
-export default function EmailDetail({ assistantStyle, email }: EmailDetailProps) {
-  const { markAsRead, deleteEmail } = useEmail();
+export default function EmailDetail({ assistantStyle, email, onDelete }: EmailDetailProps) {
+  const { markAsRead, deleteEmail: contextDelete } = useEmail();
+  const deleteEmail = onDelete ?? contextDelete;
   const showSummaryFirst = assistantStyle === "smart-summaries";
   const showActionReasonFirst = assistantStyle === "action-items";
 

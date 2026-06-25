@@ -10,6 +10,7 @@ interface EmailListProps {
   emptyMessage?: string;
   onSelectEmail: (id: string) => void;
   selectedId: string | null;
+  onDeleteEmail?: (id: string) => void;
 }
 
 const categoryColors: { [key: string]: string } = {
@@ -52,8 +53,10 @@ export default function EmailList({
   emptyMessage = "No emails yet",
   onSelectEmail,
   selectedId,
+  onDeleteEmail,
 }: EmailListProps) {
-  const { batchAnalyzeEmails, deleteEmail } = useEmail();
+  const { batchAnalyzeEmails, deleteEmail: contextDeleteEmail } = useEmail();
+  const deleteEmail = onDeleteEmail ?? contextDeleteEmail;
   const batchedRef = useRef(false);
   const showSummaryFirst = assistantStyle === "smart-summaries";
 
